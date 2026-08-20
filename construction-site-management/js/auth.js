@@ -8,6 +8,11 @@
   const { icon } = root.UI;
   const CMP = root.CMP;
 
+  /* sessionStorage is not guaranteed on every file:// browser */
+  function sessGet(key) { try { return sessionStorage.getItem(key); } catch (e) { return null; } }
+  function sessSet(key, val) { try { sessionStorage.setItem(key, val); } catch (e) { /* ignore */ } }
+  function sessRemove(key) { try { sessionStorage.removeItem(key); } catch (e) { /* ignore */ } }
+
   function showLogin() {
     const api = root.API;
     const s = api.store;
@@ -90,7 +95,7 @@
         if (res && res.ok) {
           api.store.user = res.data.user;
           api.store.token = res.data.token;
-          sessionStorage.setItem("nexora_session", JSON.stringify({ name: res.data.user.name, role: res.data.user.role, token: res.data.token }));
+          sessSet("nexora_session", JSON.stringify({ name: res.data.user.name, role: res.data.user.role, token: res.data.token }));
           root.UI.toast(`Welcome back, ${res.data.user.name}!`, "success");
           hideLogin();
           await api.refreshAll(false);
@@ -119,13 +124,13 @@
     if (api.store.mode === "live") api.call("logout", {});
     api.store.user = null;
     api.store.token = null;
-    sessionStorage.removeItem("nexora_session");
+    sessRemove("nexora_session");
     showLogin();
   }
 
   function restoreSession() {
     try {
-      const raw = sessionStorage.getItem("nexora_session");
+      const raw = sessGet("nexora_session");
       if (raw) {
         const sess = JSON.parse(raw);
         if (sess && sess.name) {

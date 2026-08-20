@@ -39,7 +39,6 @@
   };
 
   function buildChart(spec, hostEl) {
-    hostEl.innerHTML = "";
     const card = document.createElement("div");
     card.className = "chart-card";
     const head = document.createElement("div");
@@ -76,6 +75,22 @@
     const canvas = document.createElement("canvas");
     canvas.style.height = spec.type === "hbar" ? `${Math.max(220, spec.labels.length * 34)}px` : "280px";
     body.appendChild(canvas);
+    const ctx = canvas.getContext ? canvas.getContext("2d") : null;
+    if (!ctx) {
+      // no canvas support (very old browser / headless env) — render CSS fallback bars
+      body.removeChild(canvas);
+      body.classList.add("chart-fallback");
+      const max = Math.max(1, ...spec.labels.map((_, j) => spec.series.reduce((a, s) => a + F.num(s.data[j]), 0)));
+      body.innerHTML = spec.labels.map((lab, i) => {
+        const val = spec.series.reduce((a, s) => a + F.num(s.data[i]), 0);
+        return `<div class="fb-row">
+          <div class="fb-label">${F.esc(lab)}</div>
+          <div class="fb-bar-wrap"><div class="fb-bar" style="width:${(val / max) * 100}%"></div></div>
+          <div class="fb-val">${F.money(val)}</div>
+        </div>`;
+      }).join("") || '<div class="chart-nodata">No data in the selected range</div>';
+      return card;
+    }
 
     const baseOpts = {
       responsive: true,

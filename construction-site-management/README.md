@@ -35,6 +35,8 @@ Step 4  Actual Expenses →  ONLY against approved budget lines — strict contr
 ```
 construction-site-management/
 ├── index.html               ← OPEN THIS FILE on the PC
+├── Nexora Site Management System.html   ← ★ SINGLE-FILE BUILD (everything inlined)
+├── build-single.js          ← regenerates the single-file build
 ├── config.js                ← paste your Web App URL here (or use Settings in the app)
 ├── css/  style.css, print.css
 ├── js/
@@ -46,9 +48,21 @@ construction-site-management/
 │   └── pages/               ← dashboard, masters, budget, contract, expenses, reports, audit, settings
 ├── backend/
 │   └── Code.gs              ← Google Apps Script backend (paste into the Sheet)
+├── build/                   ← vendored Chart.js + small logo used by the single-file build
 ├── assets/logo.png
-└── tests/                   ← node tests (business rules + DOM)
+└── tests/                   ← node tests (business rules + DOM + single-file bundle)
 ```
+
+---
+
+## 📦 Single-file version (save & open from the PC)
+
+`Nexora Site Management System.html` is the **entire app in one file** — all CSS, all JavaScript, the logo and Chart.js are inlined (~520 KB):
+
+- Copy just that one file to any PC (or a USB stick) and double-click it — **no server, no folder, no internet needed** for demo mode.
+- Everything works identically: dashboard with charts, masters, budget, contracts, expenses, reports (print/export), audit, settings.
+- To connect Google Sheets, open the file → **Settings → Connection** → paste the Web App URL. The URL is remembered in that browser.
+- To rebuild it after changing any source file: `node build-single.js` (needs Node.js; Chart.js is vendored in `build/`).
 
 ---
 
@@ -144,11 +158,12 @@ Every report supports: project/date-range filters, summary KPI cards, charts, so
 ## 🧪 Tests
 
 ```bash
-node tests/smoke.js     # business rules: strict budget control, duplicates, locking, P&L math
-node tests/dom-test.js  # boots the real index.html in jsdom: login, every page, forms,
-                        #   strict budget line lists, print preview, full save round-trip
+node tests/smoke.js            # business rules: strict budget control, duplicates, locking, P&L math
+node tests/dom-test.js         # boots the real index.html in jsdom: login, every page, forms,
+                               #   strict budget line lists, print preview, full save round-trip
+node build-single.js && node tests/single-file-test.js   # rebuild + verify the single-file bundle
 ```
-(DOM test needs `npm i jsdom` — run it from any folder; it uses `/tmp/node_modules/jsdom`.)
+(DOM tests need `npm i jsdom`.)
 
 ---
 
