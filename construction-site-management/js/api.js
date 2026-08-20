@@ -9,6 +9,13 @@
   const F = root.Fmt;
 
   /* ---------------- store ---------------- */
+  function safeStorageGet(key) {
+    try { return localStorage.getItem(key) || ""; } catch (e) { return ""; }
+  }
+  function safeStorageSet(key, val) {
+    try { if (val) localStorage.setItem(key, val); else localStorage.removeItem(key); } catch (e) { /* storage blocked */ }
+  }
+
   const store = {
     user: null,
     token: null,
@@ -33,7 +40,7 @@
     lastSync: null,
     connected: false,
     apiUrl: (root.APP_CONFIG && root.APP_CONFIG.API_URL) || "",
-    savedApiUrl: localStorage.getItem("nexora_api_url") || "",
+    savedApiUrl: safeStorageGet("nexora_api_url"),
   };
 
   store.mode = store.savedApiUrl || store.apiUrl ? "live" : "demo";
@@ -151,8 +158,7 @@
   function setApiUrl(url) {
     const u = String(url || "").trim().replace(/\/+$/, "");
     store.apiUrl = u;
-    if (u) localStorage.setItem("nexora_api_url", u);
-    else localStorage.removeItem("nexora_api_url");
+    safeStorageSet("nexora_api_url", u);
     store.mode = u ? "live" : "demo";
     if (u) store.savedApiUrl = u;
   }
