@@ -23,6 +23,7 @@
         <div class="panel">
           <div class="panel-head"><h4>${UI.icon("link", 16)} Connection (Google Sheets)</h4></div>
           <div class="panel-body">
+            ${store.hosted ? `<div class="notice info">${UI.icon("info", 15)} <b>Hosted mode:</b> this app is being served by the Google backend itself, so all data calls use Google’s built-in bridge — no URL or CORS involved. The URL below is only needed for the saved HTML-file version on a PC.</div>` : ""}
             <div class="conn-status ${store.mode === "live" ? "live" : "demo"}">
               ${UI.icon(store.mode === "live" ? "link" : "info", 15)}
               <div>
@@ -51,6 +52,7 @@
                 <li>If it asks you to <b>sign in to Google</b> → Deploy ▸ Manage deployments ▸ ✏️ Edit ▸ “Who has access”: <b>Anyone</b> ▸ Deploy. Then copy the <b>new</b> /exec URL.</li>
                 <li>If you see “Sorry, unable to open the file” → the deployment type is wrong → Deploy ▸ New deployment ▸ <b>Web app</b>.</li>
                 <li>Make sure the URL ends with <b>/exec</b> (not /dev or /edit) and paste it above → <b>Test &amp; Connect</b>.</li>
+                <li>If the app says the browser “blocked” the connection, it automatically retries through a <b>CORS-proof fallback channel</b>. If even that fails, your browser/network is blocking script.google.com — disable ad-blockers, try another browser, or use <b>Hosted mode</b> (README, Option C).</li>
               </ol>
             </details>
           </div>

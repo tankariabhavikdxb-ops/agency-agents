@@ -89,6 +89,18 @@ construction-site-management/
 
 > ✅ Sanity check: visit the Web App URL in a browser — you should see the “backend is ONLINE” page without any Google login. If it asks you to sign in, redeploy with access **Anyone**.
 > In the app: Settings ▸ **Run Self-Test** verifies users, strict rules and data consistency against the live sheet.
+>
+> 🔁 **Built-in fallback channel:** if your browser blocks direct requests to `script.google.com` (some ad-blockers / privacy settings / strict networks do), the app automatically retries through a **CORS-proof JSONP channel** (script tags) and keeps working normally — you'll see a small notice when that happens.
+
+### C) Hosted mode (use when the PC browser blocks the connection)
+
+If your browser/network blocks requests to `script.google.com` entirely (the app says both the direct and fallback channels failed), run the app **from the backend itself** — then there is no cross-site request at all:
+
+1. Run `node build-single.js` (regenerates `backend/Index.html`).
+2. In the Apps Script editor: **＋ Files ▸ HTML** → name it exactly **`Index`** → paste the entire contents of **`backend/Index.html`**.
+3. **Deploy ▸ Manage deployments ▸ ✏️ Edit ▸ Version: “New version” ▸ Deploy** (the `/exec` URL stays the same).
+4. Open the Web App URL in the browser (sign in to Google if asked). The full app now loads from that URL — no URL to configure, no CORS, works on every browser and even on phones.
+5. The saved HTML file on the PC still works in demo mode, and in live mode whenever the network allows direct connections.
 
 ---
 
@@ -161,6 +173,8 @@ Every report supports: project/date-range filters, summary KPI cards, charts, so
 node tests/smoke.js            # business rules: strict budget control, duplicates, locking, P&L math
 node tests/dom-test.js         # boots the real index.html in jsdom: login, every page, forms,
                                #   strict budget line lists, print preview, full save round-trip
+node tests/jsonp-test.js       # verifies the CORS-proof JSONP fallback channel
+node tests/hosted-test.js      # verifies hosted mode (google.script.run bridge)
 node build-single.js && node tests/single-file-test.js   # rebuild + verify the single-file bundle
 ```
 (DOM tests need `npm i jsdom`.)
@@ -174,6 +188,8 @@ node build-single.js && node tests/single-file-test.js   # rebuild + verify the 
 | App stays in “DEMO MODE” | Settings ▸ Connection: paste the `/exec` URL, press **Test & Connect**. Also check `config.js` → `API_URL`. |
 | “Could not reach the Google Sheets backend…” | The browser can't talk to the backend. Open the Web App URL in a browser tab: you must see **“backend is ONLINE”**. If the tab won't open at all → check internet + the URL (must end with `/exec`, not `/edit` or `/dev`). If the tab opens but the app still fails → almost certainly the deployment is not set to access **Anyone** (see next row). |
 | “The backend is reachable, but the browser was blocked…” or “The Web App asked for a Google login” | Re-deploy with access **Anyone**: Deploy ▸ Manage deployments ▸ ✏️ Edit ▸ “Who has access”: **Anyone** ▸ Deploy. Copy the **new** `/exec` URL into Settings. |
+| “The backend URL responds, but the app could not read a valid reply (both channels failed)” | Either the URL is wrong/outdated (open it in your browser — you must see “backend is ONLINE”), or your browser/network blocks requests to script.google.com. Disable ad-blockers/privacy extensions, try another browser — or use **Hosted mode** (Option C). |
+| Login screen: “No active user with that name” / empty dropdown | The user list could not be loaded from the backend — the connection is failing. Use the **Retry / Open Backend URL / Demo Mode** buttons on the login screen, and fix the connection (rows above). |
 | “You pasted the Apps Script editor URL / Sheet URL / does not end with /exec” | Use the Web App URL from **Deploy ▸ Manage deployments** (starts `https://script.google.com/macros/s/…`, ends `/exec`). |
 | “The backend returned an invalid response…” | Deployment type must be **Web app** (not “API executable” / “Editor add-on”). Deploy ▸ New deployment ▸ Web app. |
 | Changes not visible to others | Press **Sync Now**; check both apps point to the **same** Web App URL. |

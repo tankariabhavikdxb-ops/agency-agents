@@ -31,5 +31,5 @@ window.APP_CONFIG = {
   PAGE_SIZE: 25,               // default rows per page in tables
   DEFAULT_VAT_RATE: 16.5,      // % (Malawi VAT)
   DEFAULT_PIN: "1234",         // initial PIN for all seeded users — change it in Settings
-  VERSION: "1.0.1",
+  VERSION: "1.0.2",
 };

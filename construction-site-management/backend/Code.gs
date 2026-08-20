@@ -172,16 +172,41 @@ function backupToDrive() {
    WEB APP ENTRY POINTS
    ============================================================================ */
 function doGet(e) {
-  return HtmlService.createHtmlOutput(
-    "<!DOCTYPE html><html><head><meta charset='utf-8'><title>" + APP_NAME + "</title>" +
+  // ---- JSONP channel: lets the PC app reach the backend even when the
+  // browser blocks CORS/fetch (script tags are exempt from CORS rules).
+  if (e && e.parameter && e.parameter.cb) {
+    const cb = String(e.parameter.cb);
+    if (!/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(cb)) {
+      return ContentService.createTextOutput("/* invalid callback */").setMimeType(ContentService.MimeType.JAVASCRIPT);
+    }
+    let payload = {};
+    try { payload = JSON.parse(e.parameter.p || "{}"); } catch (err) { payload = {}; }
+    return ContentService.createTextOutput(cb + "(" + JSON.stringify(processPayload_(payload)) + ");")
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+  // ---- Hosted mode: if an HTML file named "Index" exists in this project,
+  // serve the full app from the backend itself (zero CORS involvement).
+  try {
+    return HtmlService.createHtmlOutputFromFile("Index")
+      .setTitle(APP_NAME)
+      .addMetaTag("viewport", "width=device-width, initial-scale=1");
+  } catch (err) {
+    // no Index file — fall through to the API landing page
+  }
+  return HtmlService.createHtmlOutput(landingPageHtml_())
+    .setTitle(APP_NAME)
+    .addMetaTag("viewport", "width=device-width, initial-scale=1");
+}
+
+function landingPageHtml_() {
+  return "<!DOCTYPE html><html><head><meta charset='utf-8'><title>" + APP_NAME + "</title>" +
     "<style>body{font-family:system-ui;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#0b1220;color:#e2e8f0}" +
     ".card{max-width:520px;padding:40px;border:1px solid #f59e0b;border-radius:16px;background:#101a2e}" +
     "h1{font-size:22px;color:#fbbf24}h2{font-size:15px;color:#94a3b8;font-weight:400}p{font-size:14px;line-height:1.6}" +
     "code{background:#0b1220;padding:2px 7px;border-radius:6px;color:#fcd34d;font-size:12px}</style></head><body>" +
     "<div class='card'><h1>🏗 " + APP_NAME + "</h1><h2>Google Sheets backend is ONLINE.</h2>" +
     "<p>This URL is the <b>API endpoint</b>. Open <code>index.html</code> from the frontend folder on your PC, then paste this URL into <b>Settings → Connection</b> (or into <code>config.js</code> as <code>API_URL</code>).</p>" +
-    "<p>Deployment check: Execute as <b>Me</b>, access <b>Anyone</b>. If you see this page without logging in, the deployment is correct. ✅</p></div></body></html>"
-  ).setTitle(APP_NAME).addMetaTag("viewport", "width=device-width, initial-scale=1");
+    "<p>Deployment check: Execute as <b>Me</b>, access <b>Anyone</b>. If you see this page without logging in, the deployment is correct. ✅</p></div></body></html>";
 }
 
 function doPost(e) {
@@ -191,6 +216,19 @@ function doPost(e) {
   } catch (err) {
     return respond_(fail_("BAD_REQUEST", "Invalid JSON payload."));
   }
+  return respond_(processPayload_(payload));
+}
+
+/** Entry point for google.script.run when the app is served by this web app (hosted mode). */
+function api(payloadJson) {
+  let payload = {};
+  try { payload = JSON.parse(String(payloadJson || "{}")); } catch (err) { payload = {}; }
+  return processPayload_(payload);
+}
+
+/** Shared request handler used by doPost, the JSONP channel and google.script.run. */
+function processPayload_(payload) {
+  payload = payload || {};
   const action = payload.action || "";
   const data = payload.payload || {};
   const userName = (payload.user && payload.user.name) || "";
@@ -508,10 +546,10 @@ function doPost(e) {
       }
 
       default:
-        return respond_(fail_("UNKNOWN", "Unknown action: " + action));
+        return fail_("UNKNOWN", "Unknown action: " + action);
     }
   } catch (err) {
-    return respond_(fail_("SERVER", "Unexpected error: " + (err && err.message ? err.message : String(err))));
+    return fail_("SERVER", "Unexpected error: " + (err && err.message ? err.message : String(err)));
   }
 }
 

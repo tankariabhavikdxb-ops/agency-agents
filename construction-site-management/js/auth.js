@@ -28,6 +28,18 @@
               <div class="login-sub">Construction Site Management System</div>
             </div>
           </div>
+          <div class="login-banner" id="login-load-err" style="display:none">
+            <div class="login-banner-ic">${icon("warn", 17)}</div>
+            <div class="login-banner-txt">
+              <b>Could not load the user list from the Google Sheets backend.</b>
+              <div class="login-banner-sub">The connection to the backend is failing, so no users can be shown. Check the connection, then retry — or switch to demo mode.</div>
+              <div class="btn-row">
+                <button class="btn btn-soft btn-sm" data-act="login-retry" id="login-retry-btn">${icon("refresh", 13)} Retry</button>
+                <button class="btn btn-soft btn-sm" data-act="login-openurl">${icon("eye", 13)} Open Backend URL</button>
+                ${s.hosted ? "" : `<button class="btn btn-soft btn-sm" data-act="login-demo">${icon("info", 13)} Use Demo Mode</button>`}
+              </div>
+            </div>
+          </div>
           <form id="login-form" autocomplete="off">
             <div class="login-fields">
               <label class="login-label">Select your name <span class="req-star">*</span></label>
@@ -77,6 +89,41 @@
         emptyText: "No active user with that name",
       });
       host.querySelector("#login-user").appendChild(userSel.wrap);
+
+      // resilience: if the backend can't be reached the user list is empty —
+      // show a clear banner with retry / open-url / demo fallback
+      const banner = host.querySelector("#login-load-err");
+      const refreshBanner = () => {
+        banner.style.display = (s.mode === "live") && !(s.users || []).length ? "flex" : "none";
+      };
+      refreshBanner();
+      host.addEventListener("click", async e => {
+        const b = e.target.closest("[data-act]");
+        if (!b) return;
+        if (b.dataset.act === "login-retry") {
+          const btn = b;
+          btn.disabled = true;
+          const res = await api.call("getLoginUsers", {});
+          btn.disabled = false;
+          if (res && res.ok && res.data) {
+            s.users = res.data.rows || [];
+            userSel.setItems((s.users || []).map(u => ({ id: u.name, label: u.name, sub: `${u.role}`, badge: "" })));
+            refreshBanner();
+            root.UI.toast("User list loaded — you can sign in now.", "success");
+          } else {
+            refreshBanner();
+            root.UI.toast((res && res.error && res.error.message) || "Still cannot reach the backend.", "error", { ms: 7000 });
+          }
+        } else if (b.dataset.act === "login-openurl") {
+          const u = s.apiUrl || "";
+          if (!u) { root.UI.toast("No backend URL configured.", "error"); return; }
+          window.open(u, "_blank", "noopener");
+          root.UI.toast("You should see “backend is ONLINE” in the opened tab — with no Google sign-in page.", "info", { ms: 7000 });
+        } else if (b.dataset.act === "login-demo") {
+          api.setApiUrl("");
+          location.reload();
+        }
+      });
 
       host.querySelector("#login-form").addEventListener("submit", async e => {
         e.preventDefault();

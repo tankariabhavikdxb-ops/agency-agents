@@ -46,7 +46,75 @@
   store.mode = store.savedApiUrl || store.apiUrl ? "live" : "demo";
   if (!store.apiUrl && store.savedApiUrl) store.apiUrl = store.savedApiUrl;
 
+  /* hosted mode: the app is being served BY the Google backend itself,
+     so all data calls use google.script.run (no CORS involved at all) */
+  store.hosted = hostedAvailable();
+  if (store.hosted) store.mode = "live";
+  store.useJsonp = false;
+  store.jsonpNotified = false;
+
+  function hostedAvailable() {
+    try {
+      return !!(typeof window !== "undefined" && window.google && window.google.script && window.google.script.run);
+    } catch (e) { return false; }
+  }
+
   /* ---------------- real backend (Google Apps Script) ---------------- */
+  function requestBody(action, payload) {
+    return JSON.stringify({
+      action,
+      payload: payload || {},
+      user: store.user ? { name: store.user.name, role: store.user.role, id: store.user.id } : null,
+      token: store.token || "",
+    });
+  }
+
+  /* ---- hosted mode: google.script.run bridge ---- */
+  function callHosted(action, payload) {
+    return new Promise(resolve => {
+      let done = false;
+      const finish = res => { if (!done) { done = true; resolve(res); } };
+      try {
+        window.google.script.run
+          .withSuccessHandler(finish)
+          .withFailureHandler(err => finish({ ok: false, error: { code: "HOSTED", message: "Backend call failed: " + ((err && (err.message || err.details)) || String(err)) } }))
+          .api(requestBody(action, payload));
+      } catch (e) {
+        finish({ ok: false, error: { code: "HOSTED", message: "Backend bridge error: " + ((e && e.message) || String(e)) } });
+      }
+      setTimeout(() => { if (!done) { done = true; resolve({ ok: false, error: { code: "HOSTED_TIMEOUT", message: "The backend took too long to reply. Try again." } }); } }, 60000);
+    });
+  }
+
+  /* ---- JSONP channel: script tags are exempt from CORS, so this works
+     even where the browser blocks fetch() to script.google.com ---- */
+  function callJsonp(action, payload) {
+    if (!store.apiUrl) return Promise.resolve(null);
+    return new Promise(resolve => {
+      const cb = "nxcb_" + Math.random().toString(36).slice(2, 10);
+      const url = store.apiUrl + (store.apiUrl.indexOf("?") >= 0 ? "&" : "?") +
+        "cb=" + encodeURIComponent(cb) + "&p=" + encodeURIComponent(requestBody(action, payload));
+      let settled = false;
+      const finish = res => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        try { delete window[cb]; } catch (e) { window[cb] = undefined; }
+        const s = document.getElementById("nxjsonp-" + cb);
+        if (s && s.parentNode) s.parentNode.removeChild(s);
+        resolve(res);
+      };
+      const timer = setTimeout(() => finish(null), 20000);
+      window[cb] = res => finish(res || { ok: false, error: { code: "EMPTY", message: "Empty reply from backend." } });
+      const s = document.createElement("script");
+      s.id = "nxjsonp-" + cb;
+      s.src = url;
+      s.async = true;
+      s.onerror = () => finish(null);
+      (document.head || document.documentElement).appendChild(s);
+    });
+  }
+
   function urlHints(url) {
     const u = String(url || "").trim();
     if (/\/dev($|\?)/.test(u)) return "You pasted a “/dev” test URL — it only works for the script owner. Use the “/exec” URL from Deploy ▸ Manage deployments.";
@@ -72,7 +140,13 @@
   async function callLive(action, payload) {
     const url = store.apiUrl;
     if (!url) return { ok: false, error: { code: "NO_BACKEND", message: "Google Sheets backend not configured." } };
-    const body = JSON.stringify({ action, payload: payload || {}, user: store.user ? { name: store.user.name, role: store.user.role, id: store.user.id } : null, token: store.token || "" });
+    // Once the browser has proven it blocks direct requests, keep using the
+    // CORS-proof JSONP channel for the rest of the session.
+    if (store.useJsonp) {
+      const viaJsonp = await callJsonp(action, payload);
+      if (viaJsonp) return viaJsonp;
+    }
+    const body = requestBody(action, payload);
     let res;
     try {
       // text/plain keeps this a "simple" CORS request — works from file:// pages
@@ -82,9 +156,18 @@
         body,
       });
     } catch (e) {
-      // fetch() rejects for BOTH real network failures and CORS-blocked
-      // responses (e.g. the backend redirected to a Google login page).
-      // Tell them apart so the user gets the right fix.
+      // Direct request blocked (CORS or network). Try the JSONP channel —
+      // script tags are exempt from CORS, so it usually succeeds.
+      const viaJsonp = await callJsonp(action, payload);
+      if (viaJsonp) {
+        store.useJsonp = true;
+        if (!store.jsonpNotified) {
+          store.jsonpNotified = true;
+          if (root.UI && root.UI.toast) root.UI.toast("Connected via fallback channel (your browser blocks direct requests) — everything works normally.", "info", { ms: 6500 });
+        }
+        return viaJsonp;
+      }
+      // JSONP failed too — now figure out WHY and say so precisely.
       const hint = urlHints(url);
       if (hint) return { ok: false, error: { code: "BAD_URL", message: hint } };
       const reachable = await probeUrl(url);
@@ -92,8 +175,8 @@
         return {
           ok: false,
           error: {
-            code: "LOGIN_REDIRECT",
-            message: "The backend is reachable, but the browser was blocked from reading its response. This is almost always because the deployment asks for a Google sign-in. Open the Web App URL in a browser tab: if you see a Google “Sign in” page, re-deploy with access “Anyone” (README step 6). If you see “backend is ONLINE”, check that the URL you pasted is exactly the same one.",
+            code: "BLOCKED",
+            message: "The backend URL responds, but the app could not read a valid reply from it — both the direct channel and the CORS-proof fallback channel failed. Usually the URL is wrong or outdated: open it in your browser and confirm you see “backend is ONLINE” (ending with /exec). If you DO see that page, your browser or network is blocking requests to script.google.com — disable ad-blockers/privacy extensions, try another browser, or use Hosted mode (README, Option C).",
           },
         };
       }
@@ -143,7 +226,10 @@
 
   /* ---------------- unified API ---------------- */
   async function call(action, payload) {
-    const res = store.mode === "live" ? await callLive(action, payload) : await callMock(action, payload);
+    let res;
+    if (store.hosted) res = await callHosted(action, payload);
+    else if (store.mode === "live") res = await callLive(action, payload);
+    else res = await callMock(action, payload);
     if (res && res.ok && res.data) {
       if (res.data.version != null) store.version = res.data.version;
       if (res.data.timestamp) store.lastSync = res.data.timestamp;
@@ -229,5 +315,5 @@
     return { ok: true, ms, data: res.data };
   }
 
-  root.API = { store, call, refreshAll, refreshEntity, pollVersion, setApiUrl, testConnection, getMockDB };
+  root.API = { store, call, refreshAll, refreshEntity, pollVersion, setApiUrl, testConnection, getMockDB, callJsonp };
 })(typeof window !== "undefined" ? window : globalThis);

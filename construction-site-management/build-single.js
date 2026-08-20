@@ -83,5 +83,13 @@ console.log("   - CSS inlined (style + print)");
 console.log("   - logo inlined as data-URI favicon");
 console.log("   - Chart.js v4.4.3 inlined (" + kb(chartJs.length) + ")");
 console.log("   - " + scripts.length + " application scripts inlined");
+
+// also emit the HOSTED-MODE copy for Google Apps Script:
+// create an HTML file named exactly "Index" in the Apps Script project and
+// paste this file's contents — the backend will then serve the whole app
+// from its own /exec URL (no CORS involved, works on any browser).
+const hostedFile = path.join(root, "backend", "Index.html");
+fs.writeFileSync(hostedFile, html);
+console.log("   - hosted-mode copy written to backend/Index.html (for Google Apps Script)");
 console.log("\nSave this file anywhere and double-click to open — demo mode works");
 console.log("fully offline. Connect Google Sheets via Settings → Connection.");
