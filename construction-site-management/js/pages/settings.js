@@ -39,10 +39,20 @@
             </div>
             <div class="btn-row">
               <button class="btn btn-primary" data-act="test">${UI.icon("link", 15)} Test &amp; Connect</button>
+              <button class="btn btn-soft" data-act="openurl">${UI.icon("eye", 15)} Open Backend URL in Browser</button>
               <button class="btn btn-soft" data-act="disconnect">${UI.icon("close", 15)} Disconnect (demo mode)</button>
               <button class="btn btn-soft" data-act="synctest">${UI.icon("sync", 15)} Run Self-Test</button>
             </div>
             <div id="conn-result"></div>
+            <details class="conn-help">
+              <summary>Connection help — 30-second check</summary>
+              <ol>
+                <li>Open the Web App URL in a normal browser tab. You must see the <b>“backend is ONLINE”</b> page — with <b>no Google sign-in</b>.</li>
+                <li>If it asks you to <b>sign in to Google</b> → Deploy ▸ Manage deployments ▸ ✏️ Edit ▸ “Who has access”: <b>Anyone</b> ▸ Deploy. Then copy the <b>new</b> /exec URL.</li>
+                <li>If you see “Sorry, unable to open the file” → the deployment type is wrong → Deploy ▸ New deployment ▸ <b>Web app</b>.</li>
+                <li>Make sure the URL ends with <b>/exec</b> (not /dev or /edit) and paste it above → <b>Test &amp; Connect</b>.</li>
+              </ol>
+            </details>
           </div>
         </div>
 
@@ -100,11 +110,11 @@
       if (act === "test") {
         const url = container.querySelector("#set-url").value.trim();
         if (!url) { UI.toast("Paste your Web App URL first.", "error"); return; }
+        const host = container.querySelector("#conn-result");
+        host.innerHTML = UI.spinner("Testing connection…");
         btn.disabled = true;
-        UI.toast("Testing connection…", "info");
         const res = await api.testConnection(url);
         btn.disabled = false;
-        const host = container.querySelector("#conn-result");
         if (res.ok) {
           host.innerHTML = `<div class="notice info">${UI.icon("check", 15)} Connected in ${res.ms} ms — backend version ${F.esc(String((res.data && res.data.version) || "?"))}. You are now in LIVE mode.</div>`;
           await api.refreshAll(false);
@@ -113,6 +123,11 @@
         } else {
           host.innerHTML = `<div class="notice warn">${UI.icon("warn", 15)} ${F.esc(res.error && res.error.message || "Connection failed")}</div>`;
         }
+      } else if (act === "openurl") {
+        const url = (container.querySelector("#set-url").value || "").trim() || store.apiUrl;
+        if (!url) { UI.toast("Paste the Web App URL first.", "error"); return; }
+        window.open(url, "_blank", "noopener");
+        UI.toast("A browser tab should have opened. You must see “backend is ONLINE” with no Google sign-in.", "info", { ms: 7000 });
       } else if (act === "disconnect") {
         api.setApiUrl("");
         UI.toast("Disconnected — switched to demo mode.", "success");

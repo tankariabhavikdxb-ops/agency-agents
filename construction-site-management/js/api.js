@@ -47,6 +47,28 @@
   if (!store.apiUrl && store.savedApiUrl) store.apiUrl = store.savedApiUrl;
 
   /* ---------------- real backend (Google Apps Script) ---------------- */
+  function urlHints(url) {
+    const u = String(url || "").trim();
+    if (/\/dev($|\?)/.test(u)) return "You pasted a “/dev” test URL — it only works for the script owner. Use the “/exec” URL from Deploy ▸ Manage deployments.";
+    if (/\/edit($|\?)/.test(u) || /script\.google\.com\/home\//.test(u)) return "You pasted the Apps Script editor URL. You need the Web App URL from Deploy ▸ Manage deployments — it ends with “/exec”.";
+    if (u.includes("docs.google.com")) return "You pasted the Google Sheet URL. You need the Apps Script Web App URL (Extensions ▸ Apps Script ▸ Deploy) — it ends with “/exec”.";
+    if (u && !/\/exec$/.test(u)) return "The URL does not end with “/exec” — check that you copied the complete Web App URL (Deploy ▸ Manage deployments).";
+    return "";
+  }
+
+  async function probeUrl(url) {
+    const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), 9000) : null;
+    try {
+      await fetch(url, { method: "GET", mode: "no-cors", cache: "no-store", signal: ctrl ? ctrl.signal : undefined });
+      return true; // opaque response = the server is reachable
+    } catch (e) {
+      return false;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
   async function callLive(action, payload) {
     const url = store.apiUrl;
     if (!url) return { ok: false, error: { code: "NO_BACKEND", message: "Google Sheets backend not configured." } };
@@ -60,19 +82,49 @@
         body,
       });
     } catch (e) {
-      return { ok: false, error: { code: "NETWORK", message: "Could not reach the Google Sheets backend. Check your internet connection and the Web App URL in Settings." } };
+      // fetch() rejects for BOTH real network failures and CORS-blocked
+      // responses (e.g. the backend redirected to a Google login page).
+      // Tell them apart so the user gets the right fix.
+      const hint = urlHints(url);
+      if (hint) return { ok: false, error: { code: "BAD_URL", message: hint } };
+      const reachable = await probeUrl(url);
+      if (reachable) {
+        return {
+          ok: false,
+          error: {
+            code: "LOGIN_REDIRECT",
+            message: "The backend is reachable, but the browser was blocked from reading its response. This is almost always because the deployment asks for a Google sign-in. Open the Web App URL in a browser tab: if you see a Google “Sign in” page, re-deploy with access “Anyone” (README step 6). If you see “backend is ONLINE”, check that the URL you pasted is exactly the same one.",
+          },
+        };
+      }
+      return {
+        ok: false,
+        error: {
+          code: "NETWORK",
+          message: "The Google Sheets backend could not be reached at all. Check that the URL ends with “/exec” (not /edit or /dev), that the deployment exists (Deploy ▸ Manage deployments), and your internet connection. Open the URL in your browser — you should see the “backend is ONLINE” page.",
+        },
+      };
     }
     const text = await res.text();
     let json;
     try { json = JSON.parse(text); } catch (e) {
       const looksLikeLogin = /accounts\.google\.com|ServiceLogin|Sign in/i.test(text.slice(0, 4000));
+      if (looksLikeLogin) {
+        return {
+          ok: false,
+          error: {
+            code: "DEPLOY_ANYONE",
+            message: "The Web App asked for a Google login. Re-deploy it with access “Anyone” (see README, step 6), then copy the new /exec URL.",
+          },
+        };
+      }
+      const hint = urlHints(url);
+      if (hint) return { ok: false, error: { code: "BAD_URL", message: hint } };
       return {
         ok: false,
         error: {
-          code: looksLikeLogin ? "DEPLOY_ANYONE" : "BAD_RESPONSE",
-          message: looksLikeLogin
-            ? "The Web App asked for a Google login. Re-deploy it with access “Anyone” (see README, step 6)."
-            : "The backend returned an invalid response. Check the Web App URL and deployment type (must be “Web app”).",
+          code: "BAD_RESPONSE",
+          message: "The backend returned an invalid response. Check the Web App URL and deployment type (must be “Web app”, not “API executable” or “Editor add-on”).",
         },
       };
     }

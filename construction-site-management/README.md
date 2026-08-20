@@ -172,8 +172,10 @@ node build-single.js && node tests/single-file-test.js   # rebuild + verify the 
 | Symptom | Fix |
 |---|---|
 | App stays in “DEMO MODE” | Settings ▸ Connection: paste the `/exec` URL, press **Test & Connect**. Also check `config.js` → `API_URL`. |
-| “The backend asked for a Google login” | Re-deploy the web app with access **Anyone** (Deploy ▸ Manage deployments ▸ Edit). |
-| “Could not reach the backend” | Internet connection; URL must end with `/exec`; deployment must be type **Web app**. |
+| “Could not reach the Google Sheets backend…” | The browser can't talk to the backend. Open the Web App URL in a browser tab: you must see **“backend is ONLINE”**. If the tab won't open at all → check internet + the URL (must end with `/exec`, not `/edit` or `/dev`). If the tab opens but the app still fails → almost certainly the deployment is not set to access **Anyone** (see next row). |
+| “The backend is reachable, but the browser was blocked…” or “The Web App asked for a Google login” | Re-deploy with access **Anyone**: Deploy ▸ Manage deployments ▸ ✏️ Edit ▸ “Who has access”: **Anyone** ▸ Deploy. Copy the **new** `/exec` URL into Settings. |
+| “You pasted the Apps Script editor URL / Sheet URL / does not end with /exec” | Use the Web App URL from **Deploy ▸ Manage deployments** (starts `https://script.google.com/macros/s/…`, ends `/exec`). |
+| “The backend returned an invalid response…” | Deployment type must be **Web app** (not “API executable” / “Editor add-on”). Deploy ▸ New deployment ▸ Web app. |
 | Changes not visible to others | Press **Sync Now**; check both apps point to the **same** Web App URL. |
 | First call after opening is slow | Normal — Apps Script warms up. Subsequent calls use the cache. |
 | Can’t delete a master/budget line | By design — records already used by budget/contracts/expenses are protected. Set status to `Inactive` / `Hold` instead. |

@@ -471,6 +471,9 @@ textarea.input { resize: vertical; }
 .conn-status.live { background: var(--ok-soft); border-color: #a7f3d0; color: #065f46; }
 .conn-status.demo { background: var(--info-soft); border-color: #bae6fd; color: #075985; }
 .conn-sub { font-size: 11.5px; opacity: .85; margin-top: 2px; }
+.conn-help { margin-top: 12px; border: 1px dashed var(--line); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 12.5px; }
+.conn-help summary { cursor: pointer; font-weight: 700; color: var(--brand-2); user-select: none; }
+.conn-help ol { margin: 8px 0 0 18px; color: var(--ink-2); display: flex; flex-direction: column; gap: 6px; line-height: 1.45; }
 .who { display: flex; align-items: center; gap: 9px; }
 
 /* ---------- modal ---------- */
@@ -725,7 +728,7 @@ window.APP_CONFIG = {
   PAGE_SIZE: 25,               // default rows per page in tables
   DEFAULT_VAT_RATE: 16.5,      // % (Malawi VAT)
   DEFAULT_PIN: "1234",         // initial PIN for all seeded users — change it in Settings
-  VERSION: "1.0.0",
+  VERSION: "1.0.1",
 };
 
 </script>
@@ -3484,6 +3487,28 @@ window.APP_CONFIG = {
   if (!store.apiUrl && store.savedApiUrl) store.apiUrl = store.savedApiUrl;
 
   /* ---------------- real backend (Google Apps Script) ---------------- */
+  function urlHints(url) {
+    const u = String(url || "").trim();
+    if (/\/dev($|\?)/.test(u)) return "You pasted a “/dev” test URL — it only works for the script owner. Use the “/exec” URL from Deploy ▸ Manage deployments.";
+    if (/\/edit($|\?)/.test(u) || /script\.google\.com\/home\//.test(u)) return "You pasted the Apps Script editor URL. You need the Web App URL from Deploy ▸ Manage deployments — it ends with “/exec”.";
+    if (u.includes("docs.google.com")) return "You pasted the Google Sheet URL. You need the Apps Script Web App URL (Extensions ▸ Apps Script ▸ Deploy) — it ends with “/exec”.";
+    if (u && !/\/exec$/.test(u)) return "The URL does not end with “/exec” — check that you copied the complete Web App URL (Deploy ▸ Manage deployments).";
+    return "";
+  }
+
+  async function probeUrl(url) {
+    const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), 9000) : null;
+    try {
+      await fetch(url, { method: "GET", mode: "no-cors", cache: "no-store", signal: ctrl ? ctrl.signal : undefined });
+      return true; // opaque response = the server is reachable
+    } catch (e) {
+      return false;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
   async function callLive(action, payload) {
     const url = store.apiUrl;
     if (!url) return { ok: false, error: { code: "NO_BACKEND", message: "Google Sheets backend not configured." } };
@@ -3497,19 +3522,49 @@ window.APP_CONFIG = {
         body,
       });
     } catch (e) {
-      return { ok: false, error: { code: "NETWORK", message: "Could not reach the Google Sheets backend. Check your internet connection and the Web App URL in Settings." } };
+      // fetch() rejects for BOTH real network failures and CORS-blocked
+      // responses (e.g. the backend redirected to a Google login page).
+      // Tell them apart so the user gets the right fix.
+      const hint = urlHints(url);
+      if (hint) return { ok: false, error: { code: "BAD_URL", message: hint } };
+      const reachable = await probeUrl(url);
+      if (reachable) {
+        return {
+          ok: false,
+          error: {
+            code: "LOGIN_REDIRECT",
+            message: "The backend is reachable, but the browser was blocked from reading its response. This is almost always because the deployment asks for a Google sign-in. Open the Web App URL in a browser tab: if you see a Google “Sign in” page, re-deploy with access “Anyone” (README step 6). If you see “backend is ONLINE”, check that the URL you pasted is exactly the same one.",
+          },
+        };
+      }
+      return {
+        ok: false,
+        error: {
+          code: "NETWORK",
+          message: "The Google Sheets backend could not be reached at all. Check that the URL ends with “/exec” (not /edit or /dev), that the deployment exists (Deploy ▸ Manage deployments), and your internet connection. Open the URL in your browser — you should see the “backend is ONLINE” page.",
+        },
+      };
     }
     const text = await res.text();
     let json;
     try { json = JSON.parse(text); } catch (e) {
       const looksLikeLogin = /accounts\.google\.com|ServiceLogin|Sign in/i.test(text.slice(0, 4000));
+      if (looksLikeLogin) {
+        return {
+          ok: false,
+          error: {
+            code: "DEPLOY_ANYONE",
+            message: "The Web App asked for a Google login. Re-deploy it with access “Anyone” (see README, step 6), then copy the new /exec URL.",
+          },
+        };
+      }
+      const hint = urlHints(url);
+      if (hint) return { ok: false, error: { code: "BAD_URL", message: hint } };
       return {
         ok: false,
         error: {
-          code: looksLikeLogin ? "DEPLOY_ANYONE" : "BAD_RESPONSE",
-          message: looksLikeLogin
-            ? "The Web App asked for a Google login. Re-deploy it with access “Anyone” (see README, step 6)."
-            : "The backend returned an invalid response. Check the Web App URL and deployment type (must be “Web app”).",
+          code: "BAD_RESPONSE",
+          message: "The backend returned an invalid response. Check the Web App URL and deployment type (must be “Web app”, not “API executable” or “Editor add-on”).",
         },
       };
     }
@@ -5548,10 +5603,20 @@ window.APP_CONFIG = {
             </div>
             <div class="btn-row">
               <button class="btn btn-primary" data-act="test">${UI.icon("link", 15)} Test &amp; Connect</button>
+              <button class="btn btn-soft" data-act="openurl">${UI.icon("eye", 15)} Open Backend URL in Browser</button>
               <button class="btn btn-soft" data-act="disconnect">${UI.icon("close", 15)} Disconnect (demo mode)</button>
               <button class="btn btn-soft" data-act="synctest">${UI.icon("sync", 15)} Run Self-Test</button>
             </div>
             <div id="conn-result"></div>
+            <details class="conn-help">
+              <summary>Connection help — 30-second check</summary>
+              <ol>
+                <li>Open the Web App URL in a normal browser tab. You must see the <b>“backend is ONLINE”</b> page — with <b>no Google sign-in</b>.</li>
+                <li>If it asks you to <b>sign in to Google</b> → Deploy ▸ Manage deployments ▸ ✏️ Edit ▸ “Who has access”: <b>Anyone</b> ▸ Deploy. Then copy the <b>new</b> /exec URL.</li>
+                <li>If you see “Sorry, unable to open the file” → the deployment type is wrong → Deploy ▸ New deployment ▸ <b>Web app</b>.</li>
+                <li>Make sure the URL ends with <b>/exec</b> (not /dev or /edit) and paste it above → <b>Test &amp; Connect</b>.</li>
+              </ol>
+            </details>
           </div>
         </div>
 
@@ -5609,11 +5674,11 @@ window.APP_CONFIG = {
       if (act === "test") {
         const url = container.querySelector("#set-url").value.trim();
         if (!url) { UI.toast("Paste your Web App URL first.", "error"); return; }
+        const host = container.querySelector("#conn-result");
+        host.innerHTML = UI.spinner("Testing connection…");
         btn.disabled = true;
-        UI.toast("Testing connection…", "info");
         const res = await api.testConnection(url);
         btn.disabled = false;
-        const host = container.querySelector("#conn-result");
         if (res.ok) {
           host.innerHTML = `<div class="notice info">${UI.icon("check", 15)} Connected in ${res.ms} ms — backend version ${F.esc(String((res.data && res.data.version) || "?"))}. You are now in LIVE mode.</div>`;
           await api.refreshAll(false);
@@ -5622,6 +5687,11 @@ window.APP_CONFIG = {
         } else {
           host.innerHTML = `<div class="notice warn">${UI.icon("warn", 15)} ${F.esc(res.error && res.error.message || "Connection failed")}</div>`;
         }
+      } else if (act === "openurl") {
+        const url = (container.querySelector("#set-url").value || "").trim() || store.apiUrl;
+        if (!url) { UI.toast("Paste the Web App URL first.", "error"); return; }
+        window.open(url, "_blank", "noopener");
+        UI.toast("A browser tab should have opened. You must see “backend is ONLINE” with no Google sign-in.", "info", { ms: 7000 });
       } else if (act === "disconnect") {
         api.setApiUrl("");
         UI.toast("Disconnected — switched to demo mode.", "success");

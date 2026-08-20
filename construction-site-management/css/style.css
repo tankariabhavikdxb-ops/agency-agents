@@ -458,6 +458,9 @@ textarea.input { resize: vertical; }
 .conn-status.live { background: var(--ok-soft); border-color: #a7f3d0; color: #065f46; }
 .conn-status.demo { background: var(--info-soft); border-color: #bae6fd; color: #075985; }
 .conn-sub { font-size: 11.5px; opacity: .85; margin-top: 2px; }
+.conn-help { margin-top: 12px; border: 1px dashed var(--line); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 12.5px; }
+.conn-help summary { cursor: pointer; font-weight: 700; color: var(--brand-2); user-select: none; }
+.conn-help ol { margin: 8px 0 0 18px; color: var(--ink-2); display: flex; flex-direction: column; gap: 6px; line-height: 1.45; }
 .who { display: flex; align-items: center; gap: 9px; }
 
 /* ---------- modal ---------- */
