@@ -1,0 +1,12 @@
+{
+  "name": "serve-all-sports-malawi",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node serve.mjs",
+    "start": "node serve.mjs",
+    "build:wordpress": "node build-wordpress-theme.mjs",
+    "check": "node --check script.js && node --check serve.mjs && node --check build-wordpress-theme.mjs"
+  }
+}
