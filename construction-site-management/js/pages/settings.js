@@ -118,7 +118,25 @@
         const res = await api.testConnection(url);
         btn.disabled = false;
         if (res.ok) {
-          host.innerHTML = `<div class="notice info">${UI.icon("check", 15)} Connected in ${res.ms} ms — backend version ${F.esc(String((res.data && res.data.version) || "?"))}. You are now in LIVE mode.</div>`;
+          const bv = api.store.backendVersion || 0;
+          const need = (root.APP_CONFIG && root.APP_CONFIG.REQUIRED_BACKEND_VERSION) || 3;
+          const counts = api.store.backendCounts;
+          const outdated = bv > 0 && bv < need;
+          const countsHtml = counts
+            ? `<div class="conn-counts">
+                <div><b>${F.esc(String(counts.users))}</b> user(s)</div>
+                <div><b>${F.esc(String(counts.projects))}</b> project(s)</div>
+                <div><b>${F.esc(String(counts.budget))}</b> budget line(s)</div>
+                <div><b>${F.esc(String(counts.contracts))}</b> contract(s)/LPO(s)</div>
+                <div><b>${F.esc(String(counts.expenses))}</b> expense(s)</div>
+              </div>`
+            : "";
+          host.innerHTML = `<div class="notice ${outdated ? "warn" : "info"}">${UI.icon(outdated ? "warn" : "check", 15)}
+            <div>
+              Connected in ${res.ms} ms — data version ${F.esc(String((res.data && res.data.version) || "?"))}${bv ? `, backend script v${bv}` : ", backend script version unknown (outdated?)"}.
+              ${countsHtml}
+              ${outdated ? `<b>Your backend script is OUTDATED (v${bv} &lt; v${need}).</b> Paste the latest <b>backend/Code.gs</b> into the Apps Script editor and deploy a <b>New version</b> — otherwise the fallback channel and new features can't work.` : ""}
+            </div></div>`;
           await api.refreshAll(false);
           render(container);
           UI.toast("Google Sheets backend connected!", "success");
@@ -192,6 +210,9 @@
     const host = container.querySelector("#users-host");
     host.innerHTML = "";
     const canUsers = root.App.can("users");
+    host.innerHTML = store.mode === "live"
+      ? `<div class="notice info" style="margin-bottom:10px">${UI.icon("info", 14)} <b>LIVE users</b> — this list is stored in the <b>Users</b> tab of your Google Sheet. Changes here apply to everyone immediately. ${canUsers ? "Use “Add User” to add people." : "Only Admins can add or edit users."}</div>`
+      : `<div class="notice info" style="margin-bottom:10px">${UI.icon("info", 14)} <b>DEMO users</b> — these are the built-in sample users of the demo database, stored only in this browser. Connect Google Sheets to see and manage the <b>real</b> user list (stored in the Users tab of your sheet).</div>`;
     const table = CMP.dataTable({
       columns: [
         { key: "name", label: "Name", render: r => `<div class="who"><div class="av sm">${F.initials(r.name)}</div><b>${F.esc(r.name)}</b></div>` },

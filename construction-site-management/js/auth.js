@@ -52,6 +52,12 @@
               <div class="login-hint">Default PIN for all users: <b>1234</b> — please change it in Settings after your first login.</div>
             </div>
             <button class="btn btn-primary btn-lg btn-block" id="login-btn" type="submit">${icon("key", 16)} Sign In</button>
+            <div class="login-data-note">${s.mode === "live"
+              ? `${icon("link", 12)} You are signing in to your <b>LIVE Google Sheets data</b>.`
+              : `${icon("info", 12)} You are signing in to the <b>DEMO database</b> stored in this browser — connect Google Sheets (Settings) for live data.`}</div>
+            ${s.mode === "live" && s.backendVersion > 0 && s.backendVersion < ((root.APP_CONFIG && root.APP_CONFIG.REQUIRED_BACKEND_VERSION) || 3)
+              ? `<div class="login-data-note" style="color:var(--warn);margin-top:6px">${icon("warn", 12)} Your backend script is outdated (v${F.esc(String(s.backendVersion))}) — update <b>backend/Code.gs</b> and deploy a <b>New version</b> so the fallback channel and auto user-seeding work.</div>`
+              : ""}
             <div id="login-err" class="login-err"></div>
           </form>
           <div class="login-foot">

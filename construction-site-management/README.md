@@ -84,6 +84,10 @@ construction-site-management/
    - *Execute as:* **Me**
    - *Who has access:* **Anyone** ← required, otherwise the HTML app cannot call the sheet
 6. Copy the **Web App URL** (ends with `/exec`).
+
+> 🧑‍🤝‍🧑 **Users are auto-seeded:** if the `Users` tab is empty (e.g. `setupDatabase` was never run), the backend creates the 5 default admin users automatically on the first request — Prashant Khatri, Shakeel Patel, Bhavik Tankaria, Tanjani Malima, Davie Chavula (PIN `1234`). You can then add/edit users in the app: Settings ▸ Users & Roles.
+
+> 🔄 **After updating the backend script** (Code.gs), always deploy a **new version**: Deploy ▸ Manage deployments ▸ ✏️ Edit ▸ Version: “New version” ▸ Deploy. The `/exec` URL stays the same. The app shows the backend script version when you press **Test & Connect** — it must be **v3 or newer**.
 7. Open `index.html` → **Settings ▸ Connection** → paste the URL → **Test & Connect** (or paste it into `config.js` → `API_URL`). The status chip turns “Connected to Google Sheets”.
 8. Share the folder with the other 4 users (or the single `index.html` + `js/` + `css/` folder). Everyone works on the **same live data**.
 
@@ -188,8 +192,10 @@ node build-single.js && node tests/single-file-test.js   # rebuild + verify the 
 | App stays in “DEMO MODE” | Settings ▸ Connection: paste the `/exec` URL, press **Test & Connect**. Also check `config.js` → `API_URL`. |
 | “Could not reach the Google Sheets backend…” | The browser can't talk to the backend. Open the Web App URL in a browser tab: you must see **“backend is ONLINE”**. If the tab won't open at all → check internet + the URL (must end with `/exec`, not `/edit` or `/dev`). If the tab opens but the app still fails → almost certainly the deployment is not set to access **Anyone** (see next row). |
 | “The backend is reachable, but the browser was blocked…” or “The Web App asked for a Google login” | Re-deploy with access **Anyone**: Deploy ▸ Manage deployments ▸ ✏️ Edit ▸ “Who has access”: **Anyone** ▸ Deploy. Copy the **new** `/exec` URL into Settings. |
-| “The backend URL responds, but the app could not read a valid reply (both channels failed)” | Either the URL is wrong/outdated (open it in your browser — you must see “backend is ONLINE”), or your browser/network blocks requests to script.google.com. Disable ad-blockers/privacy extensions, try another browser — or use **Hosted mode** (Option C). |
-| Login screen: “No active user with that name” / empty dropdown | The user list could not be loaded from the backend — the connection is failing. Use the **Retry / Open Backend URL / Demo Mode** buttons on the login screen, and fix the connection (rows above). |
+| “The backend URL responds, but the app could not read a valid reply (both channels failed)” | **Most common: the backend script is outdated.** The fallback channel only exists in `backend/Code.gs` v3+ — replace ALL code in the Apps Script project with the latest `backend/Code.gs`, then Deploy ▸ Manage deployments ▸ Edit ▸ Version: “New version” ▸ Deploy. If the backend is already v3+, your browser/network blocks script.google.com → disable ad-blockers, try another browser, or use **Hosted mode** (Option C). |
+| Settings → Test & Connect says “backend script is OUTDATED” | Paste the latest `backend/Code.gs` into the Apps Script editor, save, and deploy a **New version**. |
+| Login screen: “No active user with that name” / empty dropdown | The user list could not be loaded from the backend — the connection is failing (fix rows above). Note: in DEMO mode the 5 users come from the built-in sample; in LIVE mode they come from the `Users` tab of your sheet (auto-seeded on first call by backend v3+). |
+| “Where are my live users / live data?” | Demo and live are two separate databases. Demo data lives only in the browser (sample). Live data lives only in the Google Sheet. After **Test & Connect** succeeds, the panel shows exactly what the backend contains (users, projects, budget lines, expenses). |
 | “You pasted the Apps Script editor URL / Sheet URL / does not end with /exec” | Use the Web App URL from **Deploy ▸ Manage deployments** (starts `https://script.google.com/macros/s/…`, ends `/exec`). |
 | “The backend returned an invalid response…” | Deployment type must be **Web app** (not “API executable” / “Editor add-on”). Deploy ▸ New deployment ▸ Web app. |
 | Changes not visible to others | Press **Sync Now**; check both apps point to the **same** Web App URL. |

@@ -471,6 +471,9 @@ textarea.input { resize: vertical; }
 .conn-status.live { background: var(--ok-soft); border-color: #a7f3d0; color: #065f46; }
 .conn-status.demo { background: var(--info-soft); border-color: #bae6fd; color: #075985; }
 .conn-sub { font-size: 11.5px; opacity: .85; margin-top: 2px; }
+.conn-counts { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 7px 0 3px; }
+.conn-counts div { font-size: 12px; color: var(--ink-2); }
+.conn-counts b { color: var(--ink); font-variant-numeric: tabular-nums; }
 .conn-help { margin-top: 12px; border: 1px dashed var(--line); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 12.5px; }
 .conn-help summary { cursor: pointer; font-weight: 700; color: var(--brand-2); user-select: none; }
 .conn-help ol { margin: 8px 0 0 18px; color: var(--ink-2); display: flex; flex-direction: column; gap: 6px; line-height: 1.45; }
@@ -550,6 +553,8 @@ textarea.input { resize: vertical; }
 .pin-wrap .input { padding-right: 42px; }
 .pin-wrap .icon-btn { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); }
 .login-hint { font-size: 11.5px; color: var(--muted); background: var(--line-2); padding: 8px 11px; border-radius: 8px; }
+.login-data-note { display: flex; align-items: center; gap: 6px; justify-content: center; font-size: 11.5px; color: var(--muted); margin-top: 9px; text-align: center; }
+.login-data-note .ic { color: var(--brand-2); flex: none; }
 .login-banner {
   display: flex; gap: 10px; align-items: flex-start; margin-bottom: 16px;
   background: var(--warn-soft); border: 1px solid #fde68a; color: #92400e;
@@ -737,7 +742,9 @@ window.APP_CONFIG = {
   PAGE_SIZE: 25,               // default rows per page in tables
   DEFAULT_VAT_RATE: 16.5,      // % (Malawi VAT)
   DEFAULT_PIN: "1234",         // initial PIN for all seeded users — change it in Settings
-  VERSION: "1.0.2",
+  VERSION: "1.0.3",
+  // minimum backend/Code.gs version that supports the fallback channel etc.
+  REQUIRED_BACKEND_VERSION: 3,
 };
 
 </script>
@@ -3113,10 +3120,22 @@ window.APP_CONFIG = {
       switch (action) {
 
         case "ping":
-          return { ok: true, data: { version: d.db.version, timestamp: F.nowStamp(), mode: "demo" } };
+          return { ok: true, data: { version: d.db.version, backendVersion: 3, timestamp: F.nowStamp(), mode: "demo", counts: {
+            users: d.db.users.length,
+            projects: (d.db.masters.Projects || []).length,
+            shops: (d.db.masters.Shops || []).length,
+            expenseHeads: (d.db.masters.ExpenseHeads || []).length,
+            materials: (d.db.masters.Materials || []).length,
+            units: (d.db.masters.Units || []).length,
+            suppliers: (d.db.masters.Suppliers || []).length,
+            customers: (d.db.masters.Customers || []).length,
+            budget: d.db.budget.length,
+            contracts: d.db.contracts.length,
+            expenses: d.db.expenses.length,
+          } } };
 
         case "getVersion":
-          return { ok: true, data: { version: d.db.version, timestamp: F.nowStamp() } };
+          return { ok: true, data: { version: d.db.version, backendVersion: 3, timestamp: F.nowStamp() } };
 
         case "login": {
           const u = d.db.users.find(x => String(x.name).toLowerCase() === String(data.name || "").toLowerCase());
@@ -3134,7 +3153,7 @@ window.APP_CONFIG = {
         }
 
         case "getLoginUsers": {
-          return { ok: true, data: { rows: d.db.users.filter(u => u.active === "YES").map(u => ({ id: u.id, name: u.name, role: u.role })) } };
+          return { ok: true, data: { rows: d.db.users.filter(u => u.active === "YES").map(u => ({ id: u.id, name: u.name, role: u.role })), backendVersion: 3 } };
         }
 
         case "getSettings":
@@ -3488,6 +3507,8 @@ window.APP_CONFIG = {
     version: 0,
     lastSync: null,
     connected: false,
+    backendVersion: 0,   // version of the deployed backend/Code.gs (0 = unknown/old)
+    backendCounts: null, // what the backend actually contains (users, projects, …)
     apiUrl: (root.APP_CONFIG && root.APP_CONFIG.API_URL) || "",
     savedApiUrl: safeStorageGet("nexora_api_url"),
   };
@@ -3501,6 +3522,7 @@ window.APP_CONFIG = {
   if (store.hosted) store.mode = "live";
   store.useJsonp = false;
   store.jsonpNotified = false;
+  store.jsonpFailedAt = 0;
 
   function hostedAvailable() {
     try {
@@ -3539,6 +3561,8 @@ window.APP_CONFIG = {
      even where the browser blocks fetch() to script.google.com ---- */
   function callJsonp(action, payload) {
     if (!store.apiUrl) return Promise.resolve(null);
+    // backoff: don't hang every call waiting for a channel that just failed
+    if (store.jsonpFailedAt && Date.now() - store.jsonpFailedAt < 60000) return Promise.resolve(null);
     return new Promise(resolve => {
       const cb = "nxcb_" + Math.random().toString(36).slice(2, 10);
       const url = store.apiUrl + (store.apiUrl.indexOf("?") >= 0 ? "&" : "?") +
@@ -3551,9 +3575,10 @@ window.APP_CONFIG = {
         try { delete window[cb]; } catch (e) { window[cb] = undefined; }
         const s = document.getElementById("nxjsonp-" + cb);
         if (s && s.parentNode) s.parentNode.removeChild(s);
+        if (res == null) store.jsonpFailedAt = Date.now();
         resolve(res);
       };
-      const timer = setTimeout(() => finish(null), 20000);
+      const timer = setTimeout(() => finish(null), 12000);
       window[cb] = res => finish(res || { ok: false, error: { code: "EMPTY", message: "Empty reply from backend." } });
       const s = document.createElement("script");
       s.id = "nxjsonp-" + cb;
@@ -3621,11 +3646,12 @@ window.APP_CONFIG = {
       if (hint) return { ok: false, error: { code: "BAD_URL", message: hint } };
       const reachable = await probeUrl(url);
       if (reachable) {
+        const need = (root.APP_CONFIG && root.APP_CONFIG.REQUIRED_BACKEND_VERSION) || 3;
         return {
           ok: false,
           error: {
             code: "BLOCKED",
-            message: "The backend URL responds, but the app could not read a valid reply from it — both the direct channel and the CORS-proof fallback channel failed. Usually the URL is wrong or outdated: open it in your browser and confirm you see “backend is ONLINE” (ending with /exec). If you DO see that page, your browser or network is blocking requests to script.google.com — disable ad-blockers/privacy extensions, try another browser, or use Hosted mode (README, Option C).",
+            message: "The backend URL responds, but the app could not read a valid reply from it — both the direct channel and the CORS-proof fallback channel failed. Most common cause: the backend script is OUTDATED. The fallback channel only exists in backend/Code.gs v" + need + "+ — replace ALL the code in your Apps Script project with the latest backend/Code.gs, then Deploy ▸ Manage deployments ▸ Edit ▸ Version: “New version” ▸ Deploy (the URL stays the same). If the backend IS already updated, your browser/network is blocking script.google.com — disable ad-blockers/privacy extensions, try another browser, or use Hosted mode (README, Option C).",
           },
         };
       }
@@ -3682,6 +3708,8 @@ window.APP_CONFIG = {
     if (res && res.ok && res.data) {
       if (res.data.version != null) store.version = res.data.version;
       if (res.data.timestamp) store.lastSync = res.data.timestamp;
+      if (res.data.backendVersion) store.backendVersion = Number(res.data.backendVersion);
+      if (res.data.counts) store.backendCounts = res.data.counts;
       store.connected = true;
     }
     if (res && !res.ok) {
@@ -3824,6 +3852,12 @@ window.APP_CONFIG = {
               <div class="login-hint">Default PIN for all users: <b>1234</b> — please change it in Settings after your first login.</div>
             </div>
             <button class="btn btn-primary btn-lg btn-block" id="login-btn" type="submit">${icon("key", 16)} Sign In</button>
+            <div class="login-data-note">${s.mode === "live"
+              ? `${icon("link", 12)} You are signing in to your <b>LIVE Google Sheets data</b>.`
+              : `${icon("info", 12)} You are signing in to the <b>DEMO database</b> stored in this browser — connect Google Sheets (Settings) for live data.`}</div>
+            ${s.mode === "live" && s.backendVersion > 0 && s.backendVersion < ((root.APP_CONFIG && root.APP_CONFIG.REQUIRED_BACKEND_VERSION) || 3)
+              ? `<div class="login-data-note" style="color:var(--warn);margin-top:6px">${icon("warn", 12)} Your backend script is outdated (v${F.esc(String(s.backendVersion))}) — update <b>backend/Code.gs</b> and deploy a <b>New version</b> so the fallback channel and auto user-seeding work.</div>`
+              : ""}
             <div id="login-err" class="login-err"></div>
           </form>
           <div class="login-foot">
@@ -5824,7 +5858,25 @@ window.APP_CONFIG = {
         const res = await api.testConnection(url);
         btn.disabled = false;
         if (res.ok) {
-          host.innerHTML = `<div class="notice info">${UI.icon("check", 15)} Connected in ${res.ms} ms — backend version ${F.esc(String((res.data && res.data.version) || "?"))}. You are now in LIVE mode.</div>`;
+          const bv = api.store.backendVersion || 0;
+          const need = (root.APP_CONFIG && root.APP_CONFIG.REQUIRED_BACKEND_VERSION) || 3;
+          const counts = api.store.backendCounts;
+          const outdated = bv > 0 && bv < need;
+          const countsHtml = counts
+            ? `<div class="conn-counts">
+                <div><b>${F.esc(String(counts.users))}</b> user(s)</div>
+                <div><b>${F.esc(String(counts.projects))}</b> project(s)</div>
+                <div><b>${F.esc(String(counts.budget))}</b> budget line(s)</div>
+                <div><b>${F.esc(String(counts.contracts))}</b> contract(s)/LPO(s)</div>
+                <div><b>${F.esc(String(counts.expenses))}</b> expense(s)</div>
+              </div>`
+            : "";
+          host.innerHTML = `<div class="notice ${outdated ? "warn" : "info"}">${UI.icon(outdated ? "warn" : "check", 15)}
+            <div>
+              Connected in ${res.ms} ms — data version ${F.esc(String((res.data && res.data.version) || "?"))}${bv ? `, backend script v${bv}` : ", backend script version unknown (outdated?)"}.
+              ${countsHtml}
+              ${outdated ? `<b>Your backend script is OUTDATED (v${bv} &lt; v${need}).</b> Paste the latest <b>backend/Code.gs</b> into the Apps Script editor and deploy a <b>New version</b> — otherwise the fallback channel and new features can't work.` : ""}
+            </div></div>`;
           await api.refreshAll(false);
           render(container);
           UI.toast("Google Sheets backend connected!", "success");
@@ -5898,6 +5950,9 @@ window.APP_CONFIG = {
     const host = container.querySelector("#users-host");
     host.innerHTML = "";
     const canUsers = root.App.can("users");
+    host.innerHTML = store.mode === "live"
+      ? `<div class="notice info" style="margin-bottom:10px">${UI.icon("info", 14)} <b>LIVE users</b> — this list is stored in the <b>Users</b> tab of your Google Sheet. Changes here apply to everyone immediately. ${canUsers ? "Use “Add User” to add people." : "Only Admins can add or edit users."}</div>`
+      : `<div class="notice info" style="margin-bottom:10px">${UI.icon("info", 14)} <b>DEMO users</b> — these are the built-in sample users of the demo database, stored only in this browser. Connect Google Sheets to see and manage the <b>real</b> user list (stored in the Users tab of your sheet).</div>`;
     const table = CMP.dataTable({
       columns: [
         { key: "name", label: "Name", render: r => `<div class="who"><div class="av sm">${F.initials(r.name)}</div><b>${F.esc(r.name)}</b></div>` },

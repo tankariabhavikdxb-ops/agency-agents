@@ -30,6 +30,7 @@
  *********************************************************************************/
 
 const APP_NAME = "Nexora Construction Site Management";
+const BACKEND_VERSION = 3; // bump when backend/Code.gs changes (frontend checks this)
 const SALT = "NEXORA-CMS-2026::SALT";
 const EPS = 0.005;
 
@@ -238,26 +239,30 @@ function processPayload_(payload) {
 
   try {
     switch (action) {
-      case "ping": return respond_(ok_({ version: getVersion_(), timestamp: nowStamp_(), mode: "live", app: APP_NAME }));
-      case "getVersion": return respond_(ok_({ version: getVersion_(), timestamp: nowStamp_() }));
-      case "getState": return respond_(ok_({ version: getVersion_(), timestamp: nowStamp_(), settings: getSettingsObject_(), mode: "live" }));
-      case "selftest": return respond_(ok_({ results: selftest_() }));
+      case "ping": {
+        ensureSeedUsers_();
+        return (ok_({ version: getVersion_(), backendVersion: BACKEND_VERSION, timestamp: nowStamp_(), mode: "live", app: APP_NAME, counts: backendCounts_() }));
+      }
+      case "getVersion": return (ok_({ version: getVersion_(), backendVersion: BACKEND_VERSION, timestamp: nowStamp_() }));
+      case "getState": return (ok_({ version: getVersion_(), backendVersion: BACKEND_VERSION, timestamp: nowStamp_(), settings: getSettingsObject_(), mode: "live" }));
+      case "selftest": return (ok_({ results: selftest_() }));
       case "login": return handleLogin_(data);
       case "getLoginUsers": {
+        ensureSeedUsers_();
         const rows = readRows_("Users").filter(u => String(u.Active) === "YES").map(u => ({ id: u.ID, name: u.Name, role: u.Role }));
-        return respond_(ok_({ rows }));
+        return (ok_({ rows, backendVersion: BACKEND_VERSION }));
       }
     }
 
-    if (!user) return respond_(fail_("SESSION", "Your session has expired. Please sign in again."));
+    if (!user) return (fail_("SESSION", "Your session has expired. Please sign in again."));
     const role = user.Role;
     const can = function (perm) { const p = PERMS[role] || PERMS.Clerk; return !!p[perm]; };
 
     switch (action) {
-      case "getSettings": return respond_(ok_({ settings: getSettingsObject_() }));
+      case "getSettings": return (ok_({ settings: getSettingsObject_() }));
 
       case "saveSettings": {
-        if (!can("settings")) return respond_(fail_("PERM", "You do not have permission to change settings."));
+        if (!can("settings")) return (fail_("PERM", "You do not have permission to change settings."));
         const s = getSettingsObject_();
         const allowed = ["CompanyName", "CompanyAddress", "CompanyPhone", "CompanyEmail", "Currency", "DefaultVAT", "AllowOverBudget", "PollInterval"];
         allowed.forEach(k => { if (data.settings && data.settings[k] !== undefined) s[k] = String(data.settings[k]); });
@@ -265,23 +270,23 @@ function processPayload_(payload) {
         saveSettingsObject_(s);
         audit_(user.Name, "UPDATE", "Settings", "", "Settings updated");
         bumpVersion_();
-        return respond_(ok_({ settings: s, version: getVersion_() }));
+        return (ok_({ settings: s, version: getVersion_() }));
       }
 
       case "getUsers": {
-        if (!can("users")) return respond_(fail_("PERM", "Only administrators can manage users."));
-        return respond_(ok_({ rows: readRows_("Users").map(u => Object.assign({}, u, { PIN: "" })) }));
+        if (!can("users")) return (fail_("PERM", "Only administrators can manage users."));
+        return (ok_({ rows: readRows_("Users").map(u => Object.assign({}, u, { PIN: "" })) }));
       }
 
       case "saveUser": {
-        if (!can("users")) return respond_(fail_("PERM", "Only administrators can manage users."));
-        if (!String(data.name || "").trim()) return respond_(fail_("REQUIRED", "Name is required", "name"));
+        if (!can("users")) return (fail_("PERM", "Only administrators can manage users."));
+        if (!String(data.name || "").trim()) return (fail_("REQUIRED", "Name is required", "name"));
         const rows = readRows_("Users");
         const dup = rows.find(u => u.ID !== data.id && String(u.Name).toLowerCase() === String(data.name).toLowerCase());
-        if (dup) return respond_(fail_("DUPLICATE", "A user with this name already exists.", "name"));
+        if (dup) return (fail_("DUPLICATE", "A user with this name already exists.", "name"));
         if (data.id) {
           const u = rows.find(x => x.ID === data.id);
-          if (!u) return respond_(fail_("NOT_FOUND", "User not found."));
+          if (!u) return (fail_("NOT_FOUND", "User not found."));
           u.Name = String(data.name).trim();
           u.Role = ["Admin", "Supervisor", "Clerk"].includes(data.role) ? data.role : "Clerk";
           u.Active = data.active === "NO" ? "NO" : "YES";
@@ -289,60 +294,60 @@ function processPayload_(payload) {
           updateRowById_("Users", u);
           audit_(user.Name, "UPDATE", "User", u.Name, "Updated user (role " + u.Role + ")");
         } else {
-          if (!String(data.pin || "").trim()) return respond_(fail_("REQUIRED", "PIN is required for new users.", "pin"));
+          if (!String(data.pin || "").trim()) return (fail_("REQUIRED", "PIN is required for new users.", "pin"));
           const nu = { ID: nextId_("U"), Name: String(data.name).trim(), Role: ["Admin", "Supervisor", "Clerk"].includes(data.role) ? data.role : "Clerk", PIN: hashPin_(String(data.pin).trim()), Active: "YES", CreatedAt: nowStamp_() };
           appendRow_("Users", nu);
           audit_(user.Name, "CREATE", "User", nu.Name, "Created user (role " + nu.Role + ")");
         }
         bumpVersion_();
-        return respond_(ok_({ rows: readRows_("Users").map(u => Object.assign({}, u, { PIN: "" })), version: getVersion_() }));
+        return (ok_({ rows: readRows_("Users").map(u => Object.assign({}, u, { PIN: "" })), version: getVersion_() }));
       }
 
       case "deleteUser": {
-        if (!can("users")) return respond_(fail_("PERM", "Only administrators can manage users."));
+        if (!can("users")) return (fail_("PERM", "Only administrators can manage users."));
         const rows = readRows_("Users");
         const u = rows.find(x => x.ID === data.id);
-        if (!u) return respond_(fail_("NOT_FOUND", "User not found."));
-        if (u.Name === user.Name) return respond_(fail_("INVALID", "You cannot delete your own account."));
+        if (!u) return (fail_("NOT_FOUND", "User not found."));
+        if (u.Name === user.Name) return (fail_("INVALID", "You cannot delete your own account."));
         const admins = rows.filter(x => x.Role === "Admin" && x.Active === "YES").length;
-        if (u.Role === "Admin" && admins <= 1) return respond_(fail_("INVALID", "At least one active admin must remain."));
+        if (u.Role === "Admin" && admins <= 1) return (fail_("INVALID", "At least one active admin must remain."));
         deleteRowById_("Users", data.id);
         audit_(user.Name, "DELETE", "User", u.Name, "Deleted user");
         bumpVersion_();
-        return respond_(ok_({ rows: readRows_("Users").map(x => Object.assign({}, x, { PIN: "" })), version: getVersion_() }));
+        return (ok_({ rows: readRows_("Users").map(x => Object.assign({}, x, { PIN: "" })), version: getVersion_() }));
       }
 
       case "changePin": {
         const rows = readRows_("Users");
         const u = rows.find(x => x.Name === user.Name);
-        if (!u) return respond_(fail_("NOT_FOUND", "User not found."));
-        if (u.PIN !== hashPin_(String(data.oldPin || ""))) return respond_(fail_("LOGIN", "Current PIN is incorrect."));
-        if (String(data.newPin || "").length < 4) return respond_(fail_("INVALID", "New PIN must be at least 4 characters."));
+        if (!u) return (fail_("NOT_FOUND", "User not found."));
+        if (u.PIN !== hashPin_(String(data.oldPin || ""))) return (fail_("LOGIN", "Current PIN is incorrect."));
+        if (String(data.newPin || "").length < 4) return (fail_("INVALID", "New PIN must be at least 4 characters."));
         u.PIN = hashPin_(String(data.newPin));
         updateRowById_("Users", u);
         audit_(u.Name, "UPDATE", "User", u.Name, "Changed PIN");
         bumpVersion_();
-        return respond_(ok_({ user: { name: u.Name, role: u.Role, id: u.ID } }));
+        return (ok_({ user: { name: u.Name, role: u.Role, id: u.ID } }));
       }
 
       case "getMasters": {
-        if (!MASTER_SHEETS.includes(data.sheet)) return respond_(fail_("INVALID", "Unknown master sheet."));
-        return respond_(ok_({ rows: readRows_(data.sheet), version: getVersion_() }));
+        if (!MASTER_SHEETS.includes(data.sheet)) return (fail_("INVALID", "Unknown master sheet."));
+        return (ok_({ rows: readRows_(data.sheet), version: getVersion_() }));
       }
 
       case "saveMaster": {
         const sheet = data.sheet;
-        if (!MASTER_SHEETS.includes(sheet)) return respond_(fail_("INVALID", "Unknown master sheet."));
-        if (!can("masters")) return respond_(fail_("PERM", "You do not have permission to manage masters."));
+        if (!MASTER_SHEETS.includes(sheet)) return (fail_("INVALID", "Unknown master sheet."));
+        if (!can("masters")) return (fail_("PERM", "You do not have permission to manage masters."));
         const row = data.data || {};
         const dupErr = masterDupError_(sheet, row, data.id || null);
-        if (dupErr) return respond_(dupErr);
-        if (sheet === "Materials" && !row.unit) return respond_(fail_("REQUIRED", "Unit is required for materials", "unit"));
+        if (dupErr) return (dupErr);
+        if (sheet === "Materials" && !row.unit) return (fail_("REQUIRED", "Unit is required for materials", "unit"));
         if (data.id) {
-          if (!can("edit")) return respond_(fail_("PERM", "You do not have permission to edit records."));
+          if (!can("edit")) return (fail_("PERM", "You do not have permission to edit records."));
           const rows = readRows_(sheet);
           const ex = rows.find(x => x.ID === data.id);
-          if (!ex) return respond_(fail_("NOT_FOUND", "Record not found."));
+          if (!ex) return (fail_("NOT_FOUND", "Record not found."));
           Object.keys(HEADERS[sheet]).forEach(h => {
             if (h === "ID" || h === "CreatedBy" || h === "CreatedAt") return;
             ex[h] = row[h] !== undefined ? row[h] : ex[h];
@@ -351,7 +356,7 @@ function processPayload_(payload) {
           updateRowById_(sheet, ex);
           audit_(user.Name, "UPDATE", sheet, ex.Name, "Updated " + sheet.slice(0, -1));
         } else {
-          if (!can("create")) return respond_(fail_("PERM", "You do not have permission to create records."));
+          if (!can("create")) return (fail_("PERM", "You do not have permission to create records."));
           const nu = {};
           HEADERS[sheet].forEach(h => {
             if (h === "ID") nu[h] = nextId_(sheet.slice(0, 2).toUpperCase());
@@ -364,32 +369,32 @@ function processPayload_(payload) {
           audit_(user.Name, "CREATE", sheet, nu.Name, "Created " + sheet.slice(0, -1));
         }
         bumpVersion_();
-        return respond_(ok_({ rows: readRows_(sheet), version: getVersion_() }));
+        return (ok_({ rows: readRows_(sheet), version: getVersion_() }));
       }
 
       case "deleteMaster": {
         const sheet = data.sheet;
-        if (!MASTER_SHEETS.includes(sheet)) return respond_(fail_("INVALID", "Unknown master sheet."));
-        if (!can("delete")) return respond_(fail_("PERM", "You do not have permission to delete records."));
+        if (!MASTER_SHEETS.includes(sheet)) return (fail_("INVALID", "Unknown master sheet."));
+        if (!can("delete")) return (fail_("PERM", "You do not have permission to delete records."));
         const rows = readRows_(sheet);
         const ex = rows.find(x => x.ID === data.id);
-        if (!ex) return respond_(fail_("NOT_FOUND", "Record not found."));
+        if (!ex) return (fail_("NOT_FOUND", "Record not found."));
         const blocked = inUseCheck_(sheet, data.id);
-        if (blocked) return respond_(fail_("IN_USE", blocked));
+        if (blocked) return (fail_("IN_USE", blocked));
         deleteRowById_(sheet, data.id);
         audit_(user.Name, "DELETE", sheet, ex.Name, "Deleted " + sheet.slice(0, -1));
         bumpVersion_();
-        return respond_(ok_({ rows: readRows_(sheet), version: getVersion_() }));
+        return (ok_({ rows: readRows_(sheet), version: getVersion_() }));
       }
 
-      case "getBudget": return respond_(ok_({ rows: readRows_("Budget"), version: getVersion_() }));
+      case "getBudget": return (ok_({ rows: readRows_("Budget"), version: getVersion_() }));
 
       case "saveBudgetLine": {
-        if (!can("create")) return respond_(fail_("PERM", "You do not have permission to create records."));
-        if (data.id && !can("edit")) return respond_(fail_("PERM", "You do not have permission to edit records."));
+        if (!can("create")) return (fail_("PERM", "You do not have permission to create records."));
+        if (data.id && !can("edit")) return (fail_("PERM", "You do not have permission to edit records."));
         const row = Object.assign({}, data.data || {});
         const vErr = validateBudgetLine_(row, data.id || null);
-        if (vErr) return respond_(vErr);
+        if (vErr) return (vErr);
         row.Qty = Number(row.Qty); row.Rate = Number(row.Rate);
         row.Amount = Math.round(row.Qty * row.Rate * 100) / 100;
         const mat = readRows_("Materials").find(m => m.ID === row.MaterialID);
@@ -397,7 +402,7 @@ function processPayload_(payload) {
         if (data.id) {
           const rows = readRows_("Budget");
           const ex = rows.find(x => x.ID === data.id);
-          if (!ex) return respond_(fail_("NOT_FOUND", "Budget line not found."));
+          if (!ex) return (fail_("NOT_FOUND", "Budget line not found."));
           Object.keys(HEADERS.Budget).forEach(h => {
             if (h === "ID" || h === "CreatedBy" || h === "CreatedAt") return;
             ex[h] = row[h] !== undefined ? row[h] : ex[h];
@@ -412,32 +417,32 @@ function processPayload_(payload) {
           audit_(user.Name, "CREATE", "Budget", nu.ID, "Created budget line");
         }
         bumpVersion_();
-        return respond_(ok_({ rows: readRows_("Budget"), version: getVersion_() }));
+        return (ok_({ rows: readRows_("Budget"), version: getVersion_() }));
       }
 
       case "deleteBudgetLine": {
-        if (!can("delete")) return respond_(fail_("PERM", "You do not have permission to delete records."));
+        if (!can("delete")) return (fail_("PERM", "You do not have permission to delete records."));
         const rows = readRows_("Budget");
         const ex = rows.find(x => x.ID === data.id);
-        if (!ex) return respond_(fail_("NOT_FOUND", "Budget line not found."));
+        if (!ex) return (fail_("NOT_FOUND", "Budget line not found."));
         const consumed = budgetConsumed_(data.id);
         if (consumed.qty > 0 || consumed.amount > 0) {
-          return respond_(fail_("IN_USE", "This budget line already has expenses against it and cannot be deleted. Set its status to \"Hold\" instead."));
+          return (fail_("IN_USE", "This budget line already has expenses against it and cannot be deleted. Set its status to \"Hold\" instead."));
         }
         deleteRowById_("Budget", data.id);
         audit_(user.Name, "DELETE", "Budget", ex.ID, "Deleted budget line");
         bumpVersion_();
-        return respond_(ok_({ rows: readRows_("Budget"), version: getVersion_() }));
+        return (ok_({ rows: readRows_("Budget"), version: getVersion_() }));
       }
 
-      case "getContracts": return respond_(ok_({ rows: readRows_("Contracts"), version: getVersion_() }));
+      case "getContracts": return (ok_({ rows: readRows_("Contracts"), version: getVersion_() }));
 
       case "saveContract": {
-        if (!can("create")) return respond_(fail_("PERM", "You do not have permission to create records."));
-        if (data.id && !can("edit")) return respond_(fail_("PERM", "You do not have permission to edit records."));
+        if (!can("create")) return (fail_("PERM", "You do not have permission to create records."));
+        if (data.id && !can("edit")) return (fail_("PERM", "You do not have permission to edit records."));
         const row = Object.assign({}, data.data || {});
         const vErr = validateContract_(row, data.id || null);
-        if (vErr) return respond_(vErr);
+        if (vErr) return (vErr);
         row.Direction = row.Type === "LPO" ? "Expense" : "Income";
         row.Amount = Number(row.Amount); row.VATRate = Number(row.VATRate);
         row.VATAmount = Math.round(row.Amount * row.VATRate) / 100;
@@ -445,7 +450,7 @@ function processPayload_(payload) {
         if (data.id) {
           const rows = readRows_("Contracts");
           const ex = rows.find(x => x.ID === data.id);
-          if (!ex) return respond_(fail_("NOT_FOUND", "Record not found."));
+          if (!ex) return (fail_("NOT_FOUND", "Record not found."));
           Object.keys(HEADERS.Contracts).forEach(h => {
             if (h === "ID" || h === "CreatedBy" || h === "CreatedAt") return;
             ex[h] = row[h] !== undefined ? row[h] : ex[h];
@@ -460,29 +465,29 @@ function processPayload_(payload) {
           audit_(user.Name, "CREATE", "Contract", nu.RefNo, "Created " + nu.Type);
         }
         bumpVersion_();
-        return respond_(ok_({ rows: readRows_("Contracts"), version: getVersion_() }));
+        return (ok_({ rows: readRows_("Contracts"), version: getVersion_() }));
       }
 
       case "deleteContract": {
-        if (!can("delete")) return respond_(fail_("PERM", "You do not have permission to delete records."));
+        if (!can("delete")) return (fail_("PERM", "You do not have permission to delete records."));
         const rows = readRows_("Contracts");
         const ex = rows.find(x => x.ID === data.id);
-        if (!ex) return respond_(fail_("NOT_FOUND", "Record not found."));
+        if (!ex) return (fail_("NOT_FOUND", "Record not found."));
         deleteRowById_("Contracts", data.id);
         audit_(user.Name, "DELETE", "Contract", ex.RefNo, "Deleted " + ex.Type);
         bumpVersion_();
-        return respond_(ok_({ rows: readRows_("Contracts"), version: getVersion_() }));
+        return (ok_({ rows: readRows_("Contracts"), version: getVersion_() }));
       }
 
-      case "getExpenses": return respond_(ok_({ rows: readRows_("Expenses"), version: getVersion_() }));
+      case "getExpenses": return (ok_({ rows: readRows_("Expenses"), version: getVersion_() }));
 
       case "saveExpense": {
-        if (!can("create")) return respond_(fail_("PERM", "You do not have permission to create records."));
-        if (data.id && !can("edit")) return respond_(fail_("PERM", "You do not have permission to edit records."));
+        if (!can("create")) return (fail_("PERM", "You do not have permission to create records."));
+        if (data.id && !can("edit")) return (fail_("PERM", "You do not have permission to edit records."));
         const row = Object.assign({}, data.data || {});
         const settings = getSettingsObject_();
         const vErr = validateExpense_(row, data.id || null, settings, user);
-        if (vErr) return respond_(vErr);
+        if (vErr) return (vErr);
         const bl = readRows_("Budget").find(b => b.ID === row.BudgetID);
         row.Qty = Number(row.Qty); row.Rate = Number(row.Rate);
         row.HeadID = bl.HeadID; row.MaterialID = bl.MaterialID; row.UnitID = bl.UnitID; row.ShopID = bl.ShopID;
@@ -498,7 +503,7 @@ function processPayload_(payload) {
         if (data.id) {
           const rows = readRows_("Expenses");
           const ex = rows.find(x => x.ID === data.id);
-          if (!ex) return respond_(fail_("NOT_FOUND", "Expense not found."));
+          if (!ex) return (fail_("NOT_FOUND", "Expense not found."));
           Object.keys(HEADERS.Expenses).forEach(h => {
             if (h === "ID" || h === "CreatedBy" || h === "CreatedAt") return;
             ex[h] = row[h] !== undefined ? row[h] : ex[h];
@@ -514,28 +519,28 @@ function processPayload_(payload) {
             "Expense " + fmtMoney_(nu.Amount) + " against budget line " + bl.ID + (nu.Override === "YES" ? " (over-budget override: " + nu.OverrideReason + ")" : ""));
         }
         bumpVersion_();
-        return respond_(ok_({ rows: readRows_("Expenses"), version: getVersion_() }));
+        return (ok_({ rows: readRows_("Expenses"), version: getVersion_() }));
       }
 
       case "deleteExpense": {
-        if (!can("delete")) return respond_(fail_("PERM", "You do not have permission to delete records."));
+        if (!can("delete")) return (fail_("PERM", "You do not have permission to delete records."));
         const rows = readRows_("Expenses");
         const ex = rows.find(x => x.ID === data.id);
-        if (!ex) return respond_(fail_("NOT_FOUND", "Expense not found."));
+        if (!ex) return (fail_("NOT_FOUND", "Expense not found."));
         deleteRowById_("Expenses", data.id);
         audit_(user.Name, "DELETE", "Expense", ex.InvoiceNo || ex.ID, "Deleted expense entry — budget consumption reversed");
         bumpVersion_();
-        return respond_(ok_({ rows: readRows_("Expenses"), version: getVersion_() }));
+        return (ok_({ rows: readRows_("Expenses"), version: getVersion_() }));
       }
 
       case "getAudit": {
         let rows = readRows_("Audit").slice(0, Number(data.limit) || 300);
         if (data.q) rows = rows.filter(r => String((r.User || "") + " " + (r.Action || "") + " " + (r.Entity || "") + " " + (r.Ref || "") + " " + (r.Details || "")).toLowerCase().includes(String(data.q).toLowerCase()));
-        return respond_(ok_({ rows }));
+        return (ok_({ rows }));
       }
 
       case "getAll": {
-        return respond_(ok_({
+        return (ok_({
           version: getVersion_(), timestamp: nowStamp_(), mode: "live",
           settings: getSettingsObject_(),
           users: readRows_("Users").map(u => ({ id: u.ID, name: u.Name, role: u.Role, active: u.Active, createdAt: u.CreatedAt })),
@@ -557,14 +562,15 @@ function processPayload_(payload) {
    LOGIN / SESSION
    ============================================================================ */
 function handleLogin_(data) {
+  ensureSeedUsers_();
   const rows = readRows_("Users");
   const u = rows.find(x => String(x.Name).toLowerCase() === String(data.name || "").toLowerCase());
-  if (!u) return respond_(fail_("LOGIN", "User not found. Please check your name."));
-  if (u.Active !== "YES") return respond_(fail_("LOGIN", "This user account is inactive. Contact an administrator."));
-  if (u.PIN !== hashPin_(String(data.pin || ""))) return respond_(fail_("LOGIN", "Incorrect PIN. (Default PIN is 1234 — change it in Settings.)"));
+  if (!u) return fail_("LOGIN", "User not found. Please check your name.");
+  if (u.Active !== "YES") return fail_("LOGIN", "This user account is inactive. Contact an administrator.");
+  if (u.PIN !== hashPin_(String(data.pin || ""))) return fail_("LOGIN", "Incorrect PIN. (Default PIN is 1234 — change it in Settings.)");
   audit_(u.Name, "LOGIN", "System", u.Name, "Signed in");
   bumpVersion_();
-  return respond_(ok_({ user: { name: u.Name, role: u.Role, id: u.ID }, token: makeToken_(u) }));
+  return ok_({ user: { name: u.Name, role: u.Role, id: u.ID }, token: makeToken_(u) });
 }
 
 function authenticate_(userName, token) {
@@ -846,10 +852,55 @@ function invalidateSheet_(name) {
   bumpVersion_();
 }
 
+const SETTINGS_DEFAULTS = {
+  CompanyName: "Nexora Limited",
+  CompanyAddress: "Corporate Mall, 1st Floor, Office Block B, Chilambula Road, Lilongwe, Malawi",
+  CompanyPhone: "+265 1 700 000",
+  CompanyEmail: "info@nexora.mw",
+  Currency: "MK",
+  DefaultVAT: "16.5",
+  AllowOverBudget: "NO",
+  PollInterval: "45",
+};
+
+/** Idempotent: if the Users sheet is empty (setupDatabase was never run),
+    seed the 5 default admin users so live mode is never left without users. */
+function ensureSeedUsers_() {
+  const rows = readRows_("Users", true);
+  if (rows.length) return;
+  [["U-1", "Prashant Khatri"], ["U-2", "Shakeel Patel"], ["U-3", "Bhavik Tankaria"],
+   ["U-4", "Tanjani Malima"], ["U-5", "Davie Chavula"]]
+    .forEach(function (u) {
+      appendRow_("Users", { ID: u[0], Name: u[1], Role: "Admin", PIN: hashPin_("1234"), Active: "YES", CreatedAt: nowStamp_() });
+    });
+  audit_("System", "SETUP", "Users", "ensureSeedUsers_", "Auto-seeded the 5 default admin users (PIN 1234)");
+  bumpVersion_();
+}
+
+/** Lightweight inventory of what is actually stored in the backend. */
+function backendCounts_() {
+  return {
+    users: readRows_("Users").length,
+    projects: readRows_("Projects").length,
+    shops: readRows_("Shops").length,
+    expenseHeads: readRows_("ExpenseHeads").length,
+    materials: readRows_("Materials").length,
+    units: readRows_("Units").length,
+    suppliers: readRows_("Suppliers").length,
+    customers: readRows_("Customers").length,
+    budget: readRows_("Budget").length,
+    contracts: readRows_("Contracts").length,
+    expenses: readRows_("Expenses").length,
+  };
+}
+
 function getSettingsObject_() {
   const rows = readRows_("Settings");
   const obj = {};
   rows.forEach(r => { obj[r.Key] = r.Value; });
+  Object.keys(SETTINGS_DEFAULTS).forEach(function (k) {
+    if (obj[k] === undefined || obj[k] === "") obj[k] = SETTINGS_DEFAULTS[k];
+  });
   return obj;
 }
 

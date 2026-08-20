@@ -527,10 +527,22 @@
       switch (action) {
 
         case "ping":
-          return { ok: true, data: { version: d.db.version, timestamp: F.nowStamp(), mode: "demo" } };
+          return { ok: true, data: { version: d.db.version, backendVersion: 3, timestamp: F.nowStamp(), mode: "demo", counts: {
+            users: d.db.users.length,
+            projects: (d.db.masters.Projects || []).length,
+            shops: (d.db.masters.Shops || []).length,
+            expenseHeads: (d.db.masters.ExpenseHeads || []).length,
+            materials: (d.db.masters.Materials || []).length,
+            units: (d.db.masters.Units || []).length,
+            suppliers: (d.db.masters.Suppliers || []).length,
+            customers: (d.db.masters.Customers || []).length,
+            budget: d.db.budget.length,
+            contracts: d.db.contracts.length,
+            expenses: d.db.expenses.length,
+          } } };
 
         case "getVersion":
-          return { ok: true, data: { version: d.db.version, timestamp: F.nowStamp() } };
+          return { ok: true, data: { version: d.db.version, backendVersion: 3, timestamp: F.nowStamp() } };
 
         case "login": {
           const u = d.db.users.find(x => String(x.name).toLowerCase() === String(data.name || "").toLowerCase());
@@ -548,7 +560,7 @@
         }
 
         case "getLoginUsers": {
-          return { ok: true, data: { rows: d.db.users.filter(u => u.active === "YES").map(u => ({ id: u.id, name: u.name, role: u.role })) } };
+          return { ok: true, data: { rows: d.db.users.filter(u => u.active === "YES").map(u => ({ id: u.id, name: u.name, role: u.role })), backendVersion: 3 } };
         }
 
         case "getSettings":

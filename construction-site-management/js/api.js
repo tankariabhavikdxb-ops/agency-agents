@@ -39,6 +39,8 @@
     version: 0,
     lastSync: null,
     connected: false,
+    backendVersion: 0,   // version of the deployed backend/Code.gs (0 = unknown/old)
+    backendCounts: null, // what the backend actually contains (users, projects, …)
     apiUrl: (root.APP_CONFIG && root.APP_CONFIG.API_URL) || "",
     savedApiUrl: safeStorageGet("nexora_api_url"),
   };
@@ -52,6 +54,7 @@
   if (store.hosted) store.mode = "live";
   store.useJsonp = false;
   store.jsonpNotified = false;
+  store.jsonpFailedAt = 0;
 
   function hostedAvailable() {
     try {
@@ -90,6 +93,8 @@
      even where the browser blocks fetch() to script.google.com ---- */
   function callJsonp(action, payload) {
     if (!store.apiUrl) return Promise.resolve(null);
+    // backoff: don't hang every call waiting for a channel that just failed
+    if (store.jsonpFailedAt && Date.now() - store.jsonpFailedAt < 60000) return Promise.resolve(null);
     return new Promise(resolve => {
       const cb = "nxcb_" + Math.random().toString(36).slice(2, 10);
       const url = store.apiUrl + (store.apiUrl.indexOf("?") >= 0 ? "&" : "?") +
@@ -102,9 +107,10 @@
         try { delete window[cb]; } catch (e) { window[cb] = undefined; }
         const s = document.getElementById("nxjsonp-" + cb);
         if (s && s.parentNode) s.parentNode.removeChild(s);
+        if (res == null) store.jsonpFailedAt = Date.now();
         resolve(res);
       };
-      const timer = setTimeout(() => finish(null), 20000);
+      const timer = setTimeout(() => finish(null), 12000);
       window[cb] = res => finish(res || { ok: false, error: { code: "EMPTY", message: "Empty reply from backend." } });
       const s = document.createElement("script");
       s.id = "nxjsonp-" + cb;
@@ -172,11 +178,12 @@
       if (hint) return { ok: false, error: { code: "BAD_URL", message: hint } };
       const reachable = await probeUrl(url);
       if (reachable) {
+        const need = (root.APP_CONFIG && root.APP_CONFIG.REQUIRED_BACKEND_VERSION) || 3;
         return {
           ok: false,
           error: {
             code: "BLOCKED",
-            message: "The backend URL responds, but the app could not read a valid reply from it — both the direct channel and the CORS-proof fallback channel failed. Usually the URL is wrong or outdated: open it in your browser and confirm you see “backend is ONLINE” (ending with /exec). If you DO see that page, your browser or network is blocking requests to script.google.com — disable ad-blockers/privacy extensions, try another browser, or use Hosted mode (README, Option C).",
+            message: "The backend URL responds, but the app could not read a valid reply from it — both the direct channel and the CORS-proof fallback channel failed. Most common cause: the backend script is OUTDATED. The fallback channel only exists in backend/Code.gs v" + need + "+ — replace ALL the code in your Apps Script project with the latest backend/Code.gs, then Deploy ▸ Manage deployments ▸ Edit ▸ Version: “New version” ▸ Deploy (the URL stays the same). If the backend IS already updated, your browser/network is blocking script.google.com — disable ad-blockers/privacy extensions, try another browser, or use Hosted mode (README, Option C).",
           },
         };
       }
@@ -233,6 +240,8 @@
     if (res && res.ok && res.data) {
       if (res.data.version != null) store.version = res.data.version;
       if (res.data.timestamp) store.lastSync = res.data.timestamp;
+      if (res.data.backendVersion) store.backendVersion = Number(res.data.backendVersion);
+      if (res.data.counts) store.backendCounts = res.data.counts;
       store.connected = true;
     }
     if (res && !res.ok) {
