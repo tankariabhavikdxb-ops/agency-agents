@@ -1,0 +1,22 @@
+/* ============================================================
+   NEXORA CMS — print stylesheet
+   Only the report inside #print-root is printed.
+   ============================================================ */
+@media print {
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  body { background: #fff !important; margin: 0; font-family: "Inter", system-ui, sans-serif; font-size: 12px; color: #111; }
+
+  #app-root, #login-screen, #toast-root, .modal-backdrop, noscript {
+    display: none !important;
+  }
+  #print-root { display: block !important; }
+
+  .print-doc { max-width: 100%; padding: 6px 2px; box-shadow: none; }
+  .print-head { border-bottom: 2.5px solid #f59e0b; }
+  .ptable th { background: #f59e0b !important; color: #241503 !important; }
+  .ptable tr:nth-child(even) td { background: #fafbfd !important; }
+  .ptable tfoot td { background: #fef9ec !important; }
+
+  .print-foot { position: fixed; bottom: 0; left: 0; right: 0; }
+  @page { margin: 12mm 10mm; }
+}
