@@ -41,6 +41,7 @@
     connected: false,
     backendVersion: 0,   // version of the deployed backend/Code.gs (0 = unknown/old)
     backendCounts: null, // what the backend actually contains (users, projects, …)
+    lastFingerprint: null, // data fingerprint — detects changes made directly in the sheet
     apiUrl: (root.APP_CONFIG && root.APP_CONFIG.API_URL) || "",
     savedApiUrl: safeStorageGet("nexora_api_url"),
   };
@@ -242,6 +243,7 @@
       if (res.data.timestamp) store.lastSync = res.data.timestamp;
       if (res.data.backendVersion) store.backendVersion = Number(res.data.backendVersion);
       if (res.data.counts) store.backendCounts = res.data.counts;
+      if (res.data.fingerprint) store.lastFingerprint = res.data.fingerprint;
       store.connected = true;
     }
     if (res && !res.ok) {

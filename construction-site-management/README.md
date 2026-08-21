@@ -87,7 +87,9 @@ construction-site-management/
 
 > 🧑‍🤝‍🧑 **Users are auto-seeded:** if the `Users` tab is empty (e.g. `setupDatabase` was never run), the backend creates the 5 default admin users automatically on the first request — Prashant Khatri, Shakeel Patel, Bhavik Tankaria, Tanjani Malima, Davie Chavula (PIN `1234`). You can then add/edit users in the app: Settings ▸ Users & Roles.
 
-> 🔄 **After updating the backend script** (Code.gs), always deploy a **new version**: Deploy ▸ Manage deployments ▸ ✏️ Edit ▸ Version: “New version” ▸ Deploy. The `/exec` URL stays the same. The app shows the backend script version when you press **Test & Connect** — it must be **v3 or newer**.
+> 🔄 **After updating the backend script** (Code.gs), always deploy a **new version**: Deploy ▸ Manage deployments ▸ ✏️ Edit ▸ Version: “New version” ▸ Deploy. The `/exec` URL stays the same. The app shows the backend script version when you press **Test & Connect** — it must be **v4 or newer** (v4 added the camelCase⇄PascalCase data mapping that keeps every field intact, plus data-fingerprint sync).
+
+> 🕐 **Real-time sync (how it detects changes):** the app polls every ~45s and compares (a) the data version (bumped on every app write) and (b) a **data fingerprint** (row counts of every tab, recomputed within ~8s). The fingerprint catches changes made **directly in the Google Sheet**, not just app changes — the view refreshes automatically either way, with a toast telling you the source. Manual: **Sync Now** in the top bar.
 7. Open `index.html` → **Settings ▸ Connection** → paste the URL → **Test & Connect** (or paste it into `config.js` → `API_URL`). The status chip turns “Connected to Google Sheets”.
 8. Share the folder with the other 4 users (or the single `index.html` + `js/` + `css/` folder). Everyone works on the **same live data**.
 
@@ -175,6 +177,9 @@ Every report supports: project/date-range filters, summary KPI cards, charts, so
 
 ```bash
 node tests/smoke.js            # business rules: strict budget control, duplicates, locking, P&L math
+node tests/backend-emulator-test.js  # ★ runs the REAL backend/Code.gs in an Apps Script emulator:
+                                      #   auto-seed, camelCase mapping, strict control, duplicates,
+                                      #   auth, settings, audit, JSONP, hosted api(), fingerprint sync
 node tests/dom-test.js         # boots the real index.html in jsdom: login, every page, forms,
                                #   strict budget line lists, print preview, full save round-trip
 node tests/jsonp-test.js       # verifies the CORS-proof JSONP fallback channel
@@ -195,6 +200,8 @@ node build-single.js && node tests/single-file-test.js   # rebuild + verify the 
 | “The backend URL responds, but the app could not read a valid reply (both channels failed)” | Two possibilities. **(1) Backend script outdated** — self-check: open your URL with `?cb=nxprobe&p={}` appended; backend v3+ shows `nxprobe({…backendVersion:3…})`, an old version shows the landing page. Update `backend/Code.gs` and deploy a **New version**. **(2) Browser/network blocking** — if the self-check DOES show `nxprobe`, your browser (ad-blocker/privacy shield/company network) blocks requests to script.google.com → disable extensions, try another browser, or use **Hosted mode** (Option C) which bypasses this completely. |
 | Settings → Test & Connect says “backend script is OUTDATED” | Paste the latest `backend/Code.gs` into the Apps Script editor, save, and deploy a **New version**. |
 | Backend is verified healthy but the PC browser still blocks the app | Use **Hosted mode** (Option C) — the app then runs from Google itself, so nothing is ever blocked. This is the recommended setup for strict company networks. |
+| Rows appear in the sheet with ID/date but **data columns are blank** | Backend script is older than **v4** (a key-mapping bug in earlier versions). Paste the latest `backend/Code.gs`, deploy a **New version**. Entries made with the old script have blank columns — delete those rows and re-enter, or run `clearAllData` + `seedDemoData` to start fresh. |
+| Changes made directly in the Google Sheet don't appear | They do — within ~45s+8s: the fingerprint sync picks up direct sheet edits and refreshes the view (toast: “The Google Sheet was edited directly”). For instant update press **Sync Now**. |
 | Login screen: “No active user with that name” / empty dropdown | The user list could not be loaded from the backend — the connection is failing (fix rows above). Note: in DEMO mode the 5 users come from the built-in sample; in LIVE mode they come from the `Users` tab of your sheet (auto-seeded on first call by backend v3+). |
 | “Where are my live users / live data?” | Demo and live are two separate databases. Demo data lives only in the browser (sample). Live data lives only in the Google Sheet. After **Test & Connect** succeeds, the panel shows exactly what the backend contains (users, projects, budget lines, expenses). |
 | “You pasted the Apps Script editor URL / Sheet URL / does not end with /exec” | Use the Web App URL from **Deploy ▸ Manage deployments** (starts `https://script.google.com/macros/s/…`, ends `/exec`). |

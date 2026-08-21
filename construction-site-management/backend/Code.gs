@@ -30,7 +30,7 @@
  *********************************************************************************/
 
 const APP_NAME = "Nexora Construction Site Management";
-const BACKEND_VERSION = 3; // bump when backend/Code.gs changes (frontend checks this)
+const BACKEND_VERSION = 4; // bump when backend/Code.gs changes (frontend checks this)
 const SALT = "NEXORA-CMS-2026::SALT";
 const EPS = 0.005;
 
@@ -51,6 +51,81 @@ const HEADERS = {
   Expenses: ["ID", "ProjectID", "BudgetID", "Date", "ShopID", "SupplierID", "InvoiceNo", "HeadID", "MaterialID", "UnitID", "Qty", "Rate", "Amount", "PaymentStatus", "Override", "OverrideReason", "Remarks", "CreatedBy", "CreatedAt", "UpdatedBy", "UpdatedAt"],
   Audit: ["Timestamp", "User", "Action", "Entity", "Ref", "Details"],
 };
+
+/* ============================================================================
+   API KEY NORMALIZATION — the frontend speaks camelCase (name, projectId…),
+   the sheet headers are PascalCase (Name, ProjectID…). Every write is
+   converted camel→Pascal on the way IN and every response Pascal→camel on
+   the way OUT, so the API boundary is always camelCase.
+   ============================================================================ */
+const CAMEL_SPECIALS = { "ID": "id", "TIN": "tin", "PIN": "pin", "Timestamp": "ts", "VATRate": "vatRate", "VATAmount": "vatAmount" };
+
+function camelKey_(k) {
+  if (CAMEL_SPECIALS[k]) return CAMEL_SPECIALS[k];
+  if (k.length > 2 && k.slice(-2) === "ID") return k.charAt(0).toLowerCase() + k.slice(1, -2) + "Id";
+  return k.charAt(0).toLowerCase() + k.slice(1);
+}
+
+function camelRow_(obj) {
+  const out = {};
+  Object.keys(obj || {}).forEach(function (k) { out[camelKey_(k)] = obj[k]; });
+  return out;
+}
+
+function camelRows_(rows) { return (rows || []).map(camelRow_); }
+
+function pascalKey_(k) {
+  if (k === "id") return "ID";
+  if (k === "tin") return "TIN";
+  if (k === "pin") return "PIN";
+  if (k === "vatRate") return "VATRate";
+  if (k === "ts") return "Timestamp";
+  if (k.length > 3 && k.slice(-2) === "Id") return k.charAt(0).toUpperCase() + k.slice(1, -2) + "ID";
+  return k.charAt(0).toUpperCase() + k.slice(1);
+}
+
+function pascalRow_(obj) {
+  const out = {};
+  Object.keys(obj || {}).forEach(function (k) { out[pascalKey_(k)] = obj[k]; });
+  return out;
+}
+
+const SETTINGS_KEYS = { CompanyName: "companyName", CompanyAddress: "companyAddress", CompanyPhone: "companyPhone", CompanyEmail: "companyEmail", Currency: "currency", DefaultVAT: "defaultVAT", AllowOverBudget: "allowOverBudget", PollInterval: "pollInterval" };
+
+function camelSettings_(obj) {
+  const out = {};
+  Object.keys(obj || {}).forEach(function (k) { out[SETTINGS_KEYS[k] || camelKey_(k)] = obj[k]; });
+  return out;
+}
+
+function pascalSettings_(obj) {
+  const out = {};
+  Object.keys(obj || {}).forEach(function (k) {
+    let pk = null;
+    Object.keys(SETTINGS_KEYS).forEach(function (p) { if (SETTINGS_KEYS[p] === k) pk = p; });
+    out[pk || pascalKey_(k)] = obj[k];
+  });
+  return out;
+}
+
+/* Lightweight data fingerprint (last-row of every tab, cached ~8s): lets
+   clients detect changes made DIRECTLY in the Google Sheet, not only
+   changes made through the app. */
+function fingerprint_() {
+  const cached = cacheGet_("fingerprint", null);
+  if (cached) return cached;
+  const parts = [];
+  Object.keys(HEADERS).forEach(function (name) {
+    parts.push(name + ":" + getSheet_(name).getLastRow());
+  });
+  const fp = parts.join("|");
+  cachePut_("fingerprint", fp, 8);
+  return fp;
+}
+
+function cacheRemove_(key) {
+  try { CacheService.getScriptCache().remove(key); } catch (e) { /* ignore */ }
+}
 
 const PERMS = {
   Admin: { settings: true, users: true, masters: true, edit: true, delete: true, create: true, override: true },
@@ -241,16 +316,16 @@ function processPayload_(payload) {
     switch (action) {
       case "ping": {
         ensureSeedUsers_();
-        return (ok_({ version: getVersion_(), backendVersion: BACKEND_VERSION, timestamp: nowStamp_(), mode: "live", app: APP_NAME, counts: backendCounts_() }));
+        return (ok_({ version: getVersion_(), backendVersion: BACKEND_VERSION, timestamp: nowStamp_(), mode: "live", app: APP_NAME, counts: backendCounts_(), fingerprint: fingerprint_() }));
       }
-      case "getVersion": return (ok_({ version: getVersion_(), backendVersion: BACKEND_VERSION, timestamp: nowStamp_() }));
-      case "getState": return (ok_({ version: getVersion_(), backendVersion: BACKEND_VERSION, timestamp: nowStamp_(), settings: getSettingsObject_(), mode: "live" }));
+      case "getVersion": return (ok_({ version: getVersion_(), backendVersion: BACKEND_VERSION, timestamp: nowStamp_(), fingerprint: fingerprint_() }));
+      case "getState": return (ok_({ version: getVersion_(), backendVersion: BACKEND_VERSION, timestamp: nowStamp_(), settings: camelSettings_(getSettingsObject_()), mode: "live", fingerprint: fingerprint_() }));
       case "selftest": return (ok_({ results: selftest_() }));
       case "login": return handleLogin_(data);
       case "getLoginUsers": {
         ensureSeedUsers_();
         const rows = readRows_("Users").filter(u => String(u.Active) === "YES").map(u => ({ id: u.ID, name: u.Name, role: u.Role }));
-        return (ok_({ rows, backendVersion: BACKEND_VERSION }));
+        return (ok_({ rows, backendVersion: BACKEND_VERSION, fingerprint: fingerprint_() }));
       }
     }
 
@@ -259,18 +334,19 @@ function processPayload_(payload) {
     const can = function (perm) { const p = PERMS[role] || PERMS.Clerk; return !!p[perm]; };
 
     switch (action) {
-      case "getSettings": return (ok_({ settings: getSettingsObject_() }));
+      case "getSettings": return (ok_({ settings: camelSettings_(getSettingsObject_()) }));
 
       case "saveSettings": {
         if (!can("settings")) return (fail_("PERM", "You do not have permission to change settings."));
         const s = getSettingsObject_();
+        const incoming = pascalSettings_(data.settings || {});
         const allowed = ["CompanyName", "CompanyAddress", "CompanyPhone", "CompanyEmail", "Currency", "DefaultVAT", "AllowOverBudget", "PollInterval"];
-        allowed.forEach(k => { if (data.settings && data.settings[k] !== undefined) s[k] = String(data.settings[k]); });
+        allowed.forEach(k => { if (incoming[k] !== undefined) s[k] = String(incoming[k]); });
         s.AllowOverBudget = s.AllowOverBudget === "YES" ? "YES" : "NO";
         saveSettingsObject_(s);
         audit_(user.Name, "UPDATE", "Settings", "", "Settings updated");
         bumpVersion_();
-        return (ok_({ settings: s, version: getVersion_() }));
+        return (ok_({ settings: camelSettings_(s), version: getVersion_() }));
       }
 
       case "getUsers": {
@@ -332,17 +408,17 @@ function processPayload_(payload) {
 
       case "getMasters": {
         if (!MASTER_SHEETS.includes(data.sheet)) return (fail_("INVALID", "Unknown master sheet."));
-        return (ok_({ rows: readRows_(data.sheet), version: getVersion_() }));
+        return (ok_({ rows: camelRows_(readRows_(data.sheet)), version: getVersion_() }));
       }
 
       case "saveMaster": {
         const sheet = data.sheet;
         if (!MASTER_SHEETS.includes(sheet)) return (fail_("INVALID", "Unknown master sheet."));
         if (!can("masters")) return (fail_("PERM", "You do not have permission to manage masters."));
-        const row = data.data || {};
+        const row = pascalRow_(data.data || {}); // frontend sends camelCase
         const dupErr = masterDupError_(sheet, row, data.id || null);
         if (dupErr) return (dupErr);
-        if (sheet === "Materials" && !row.unit) return (fail_("REQUIRED", "Unit is required for materials", "unit"));
+        if (sheet === "Materials" && !row.Unit) return (fail_("REQUIRED", "Unit is required for materials", "unit"));
         if (data.id) {
           if (!can("edit")) return (fail_("PERM", "You do not have permission to edit records."));
           const rows = readRows_(sheet);
@@ -369,7 +445,7 @@ function processPayload_(payload) {
           audit_(user.Name, "CREATE", sheet, nu.Name, "Created " + sheet.slice(0, -1));
         }
         bumpVersion_();
-        return (ok_({ rows: readRows_(sheet), version: getVersion_() }));
+        return (ok_({ rows: camelRows_(readRows_(sheet)), version: getVersion_() }));
       }
 
       case "deleteMaster": {
@@ -384,15 +460,15 @@ function processPayload_(payload) {
         deleteRowById_(sheet, data.id);
         audit_(user.Name, "DELETE", sheet, ex.Name, "Deleted " + sheet.slice(0, -1));
         bumpVersion_();
-        return (ok_({ rows: readRows_(sheet), version: getVersion_() }));
+        return (ok_({ rows: camelRows_(readRows_(sheet)), version: getVersion_() }));
       }
 
-      case "getBudget": return (ok_({ rows: readRows_("Budget"), version: getVersion_() }));
+      case "getBudget": return (ok_({ rows: camelRows_(readRows_("Budget")), version: getVersion_() }));
 
       case "saveBudgetLine": {
         if (!can("create")) return (fail_("PERM", "You do not have permission to create records."));
         if (data.id && !can("edit")) return (fail_("PERM", "You do not have permission to edit records."));
-        const row = Object.assign({}, data.data || {});
+        const row = pascalRow_(data.data || {}); // frontend sends camelCase
         const vErr = validateBudgetLine_(row, data.id || null);
         if (vErr) return (vErr);
         row.Qty = Number(row.Qty); row.Rate = Number(row.Rate);
@@ -417,7 +493,7 @@ function processPayload_(payload) {
           audit_(user.Name, "CREATE", "Budget", nu.ID, "Created budget line");
         }
         bumpVersion_();
-        return (ok_({ rows: readRows_("Budget"), version: getVersion_() }));
+        return (ok_({ rows: camelRows_(readRows_("Budget")), version: getVersion_() }));
       }
 
       case "deleteBudgetLine": {
@@ -432,15 +508,15 @@ function processPayload_(payload) {
         deleteRowById_("Budget", data.id);
         audit_(user.Name, "DELETE", "Budget", ex.ID, "Deleted budget line");
         bumpVersion_();
-        return (ok_({ rows: readRows_("Budget"), version: getVersion_() }));
+        return (ok_({ rows: camelRows_(readRows_("Budget")), version: getVersion_() }));
       }
 
-      case "getContracts": return (ok_({ rows: readRows_("Contracts"), version: getVersion_() }));
+      case "getContracts": return (ok_({ rows: camelRows_(readRows_("Contracts")), version: getVersion_() }));
 
       case "saveContract": {
         if (!can("create")) return (fail_("PERM", "You do not have permission to create records."));
         if (data.id && !can("edit")) return (fail_("PERM", "You do not have permission to edit records."));
-        const row = Object.assign({}, data.data || {});
+        const row = pascalRow_(data.data || {}); // frontend sends camelCase
         const vErr = validateContract_(row, data.id || null);
         if (vErr) return (vErr);
         row.Direction = row.Type === "LPO" ? "Expense" : "Income";
@@ -465,7 +541,7 @@ function processPayload_(payload) {
           audit_(user.Name, "CREATE", "Contract", nu.RefNo, "Created " + nu.Type);
         }
         bumpVersion_();
-        return (ok_({ rows: readRows_("Contracts"), version: getVersion_() }));
+        return (ok_({ rows: camelRows_(readRows_("Contracts")), version: getVersion_() }));
       }
 
       case "deleteContract": {
@@ -476,15 +552,15 @@ function processPayload_(payload) {
         deleteRowById_("Contracts", data.id);
         audit_(user.Name, "DELETE", "Contract", ex.RefNo, "Deleted " + ex.Type);
         bumpVersion_();
-        return (ok_({ rows: readRows_("Contracts"), version: getVersion_() }));
+        return (ok_({ rows: camelRows_(readRows_("Contracts")), version: getVersion_() }));
       }
 
-      case "getExpenses": return (ok_({ rows: readRows_("Expenses"), version: getVersion_() }));
+      case "getExpenses": return (ok_({ rows: camelRows_(readRows_("Expenses")), version: getVersion_() }));
 
       case "saveExpense": {
         if (!can("create")) return (fail_("PERM", "You do not have permission to create records."));
         if (data.id && !can("edit")) return (fail_("PERM", "You do not have permission to edit records."));
-        const row = Object.assign({}, data.data || {});
+        const row = pascalRow_(data.data || {}); // frontend sends camelCase
         const settings = getSettingsObject_();
         const vErr = validateExpense_(row, data.id || null, settings, user);
         if (vErr) return (vErr);
@@ -519,7 +595,7 @@ function processPayload_(payload) {
             "Expense " + fmtMoney_(nu.Amount) + " against budget line " + bl.ID + (nu.Override === "YES" ? " (over-budget override: " + nu.OverrideReason + ")" : ""));
         }
         bumpVersion_();
-        return (ok_({ rows: readRows_("Expenses"), version: getVersion_() }));
+        return (ok_({ rows: camelRows_(readRows_("Expenses")), version: getVersion_() }));
       }
 
       case "deleteExpense": {
@@ -530,23 +606,23 @@ function processPayload_(payload) {
         deleteRowById_("Expenses", data.id);
         audit_(user.Name, "DELETE", "Expense", ex.InvoiceNo || ex.ID, "Deleted expense entry — budget consumption reversed");
         bumpVersion_();
-        return (ok_({ rows: readRows_("Expenses"), version: getVersion_() }));
+        return (ok_({ rows: camelRows_(readRows_("Expenses")), version: getVersion_() }));
       }
 
       case "getAudit": {
         let rows = readRows_("Audit").slice(0, Number(data.limit) || 300);
         if (data.q) rows = rows.filter(r => String((r.User || "") + " " + (r.Action || "") + " " + (r.Entity || "") + " " + (r.Ref || "") + " " + (r.Details || "")).toLowerCase().includes(String(data.q).toLowerCase()));
-        return (ok_({ rows }));
+        return (ok_({ rows: camelRows_(rows) }));
       }
 
       case "getAll": {
         return (ok_({
-          version: getVersion_(), timestamp: nowStamp_(), mode: "live",
-          settings: getSettingsObject_(),
+          version: getVersion_(), timestamp: nowStamp_(), mode: "live", fingerprint: fingerprint_(),
+          settings: camelSettings_(getSettingsObject_()),
           users: readRows_("Users").map(u => ({ id: u.ID, name: u.Name, role: u.Role, active: u.Active, createdAt: u.CreatedAt })),
-          masters: MASTER_SHEETS.reduce((a, s) => { a[s] = readRows_(s); return a; }, {}),
-          budget: readRows_("Budget"), contracts: readRows_("Contracts"), expenses: readRows_("Expenses"),
-          audit: readRows_("Audit").slice(0, 300),
+          masters: MASTER_SHEETS.reduce((a, s) => { a[s] = camelRows_(readRows_(s)); return a; }, {}),
+          budget: camelRows_(readRows_("Budget")), contracts: camelRows_(readRows_("Contracts")), expenses: camelRows_(readRows_("Expenses")),
+          audit: camelRows_(readRows_("Audit").slice(0, 300)),
         }));
       }
 
@@ -593,22 +669,22 @@ function sha256hex_(s) {
    ============================================================================ */
 function masterDupError_(sheet, data, selfId) {
   const rows = readRows_(sheet);
-  const name = String(data.name || "").trim();
+  const name = String(data.Name || "").trim();
   if (!name) return fail_("REQUIRED", "Name is required", "name");
   const lower = name.toLowerCase();
   const dup = rows.find(r => r.ID !== selfId && String(r.Name).trim().toLowerCase() === lower);
   if (dup) return fail_("DUPLICATE", sheet.slice(0, -1) + " \"" + name + "\" already exists — duplicate entries are not allowed.", "name");
   if (sheet === "Projects") {
-    const code = String(data.code || "").trim().toUpperCase();
+    const code = String(data.Code || "").trim().toUpperCase();
     if (!code) return fail_("REQUIRED", "Project code is required", "code");
     const dupC = rows.find(r => r.ID !== selfId && String(r.Code).trim().toUpperCase() === code);
     if (dupC) return fail_("DUPLICATE", "Project code \"" + code + "\" is already used by \"" + dupC.Name + "\".", "code");
   }
   if (sheet === "Units") {
-    const ab = String(data.abbrev || "").trim().toLowerCase();
+    const ab = String(data.Abbrev || "").trim().toLowerCase();
     if (ab) {
       const dupA = rows.find(r => r.ID !== selfId && String(r.Abbrev).trim().toLowerCase() === ab);
-      if (dupA) return fail_("DUPLICATE", "Unit abbreviation \"" + data.abbrev + "\" already exists.", "abbrev");
+      if (dupA) return fail_("DUPLICATE", "Unit abbreviation \"" + data.Abbrev + "\" already exists.", "abbrev");
     }
   }
   return null;
@@ -635,7 +711,9 @@ function validateBudgetLine_(data, selfId) {
     const consumed = budgetConsumed_(selfId);
     const locked = [["ProjectID", "projectId"], ["HeadID", "headId"], ["MaterialID", "materialId"], ["ShopID", "shopId"], ["UnitID", "unitId"]];
     for (let i = 0; i < locked.length; i++) {
-      if (String(data[locked[i][0]]) !== String(self[locked[i][0]])) {
+      const k = locked[i][0];
+      // absent/empty values mean "keep as-is" — only an actual CHANGE is blocked
+      if (data[k] !== undefined && data[k] !== "" && String(data[k]) !== String(self[k])) {
         return fail_("LOCKED", "This budget line already has expenses against it — its project, head, material, shop and unit cannot be changed.", locked[i][1]);
       }
     }
@@ -914,7 +992,7 @@ function saveSettingsObject_(obj) {
 }
 
 function getVersion_() { return Number(cacheGet_("version", "1")); }
-function bumpVersion_() { cachePut_("version", String(getVersion_() + 1), 21600); }
+function bumpVersion_() { cachePut_("version", String(getVersion_() + 1), 21600); cacheRemove_("fingerprint"); }
 
 function cacheGet_(key, def) {
   try {
@@ -932,6 +1010,7 @@ function audit_(userName, action, entity, ref, details) {
     sh.appendRow([nowStamp_(), userName, action, entity, ref || "", details || ""]);
     const gen = Number(cacheGet_("gen", "0")) + 1;
     cachePut_("gen", String(gen), 21600);
+    cacheRemove_("fingerprint");
   } catch (e) { /* never block a write on audit failure */ }
 }
 

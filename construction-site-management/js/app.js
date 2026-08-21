@@ -171,11 +171,17 @@
     if (!api.store.user) return;
     if (api.store.mode === "live") {
       setSyncState("syncing");
+      const prevVersion = api.store.version;
+      const prevFingerprint = api.store.lastFingerprint;
       const v = await api.pollVersion();
       if (v == null) { setSyncState("offline"); return; }
-      if (v !== api.store.version) {
+      const versionChanged = v !== prevVersion;
+      const dataChanged = prevFingerprint != null && api.store.lastFingerprint != null && api.store.lastFingerprint !== prevFingerprint;
+      if (versionChanged || dataChanged) {
         await api.refreshAll(false);
-        UI.toast("New changes from another user detected — view refreshed.", "info");
+        UI.toast(versionChanged
+          ? "New changes from another user detected — view refreshed."
+          : "The Google Sheet was edited directly — view refreshed.", "info");
         rerenderCurrent();
       } else {
         api.store.lastSync = F.nowStamp();

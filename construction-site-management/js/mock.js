@@ -17,6 +17,10 @@
   const EPS = 0.005;
 
   /* ---------------- permissions ---------------- */
+  function fp(d) {
+    return "mock:" + d.version + ":" + d.masters.Projects.length + ":" + d.budget.length + ":" + d.contracts.length + ":" + d.expenses.length + ":" + d.audit.length;
+  }
+
   const PERMS = {
     Admin: { settings: true, users: true, masters: true, edit: true, delete: true, create: true, override: true },
     Supervisor: { settings: false, users: false, masters: true, edit: true, delete: true, create: true, override: false },
@@ -405,7 +409,8 @@
       const consumed = budgetConsumed(db, selfId);
       const locked = ["projectId", "headId", "materialId", "shopId", "unitId"];
       for (const k of locked) {
-        if (String(data[k]) !== String(self[k])) {
+        // absent/empty values mean "keep as-is" — only an actual CHANGE is blocked
+        if (data[k] !== undefined && data[k] !== "" && String(data[k]) !== String(self[k])) {
           return err("LOCKED", "This budget line already has expenses against it — its project, head, material, shop and unit cannot be changed.", k);
         }
       }
@@ -539,10 +544,10 @@
             budget: d.db.budget.length,
             contracts: d.db.contracts.length,
             expenses: d.db.expenses.length,
-          } } };
+          }, fingerprint: fp(d.db) } };
 
         case "getVersion":
-          return { ok: true, data: { version: d.db.version, backendVersion: 3, timestamp: F.nowStamp() } };
+          return { ok: true, data: { version: d.db.version, backendVersion: 4, timestamp: F.nowStamp(), fingerprint: fp(d.db) } };
 
         case "login": {
           const u = d.db.users.find(x => String(x.name).toLowerCase() === String(data.name || "").toLowerCase());
@@ -556,11 +561,11 @@
 
         case "getState": {
           const s = d.db.settings;
-          return { ok: true, data: { version: d.db.version, timestamp: F.nowStamp(), settings: s, mode: "demo" } };
+          return { ok: true, data: { version: d.db.version, timestamp: F.nowStamp(), settings: s, mode: "demo", fingerprint: fp(d.db) } };
         }
 
         case "getLoginUsers": {
-          return { ok: true, data: { rows: d.db.users.filter(u => u.active === "YES").map(u => ({ id: u.id, name: u.name, role: u.role })), backendVersion: 3 } };
+          return { ok: true, data: { rows: d.db.users.filter(u => u.active === "YES").map(u => ({ id: u.id, name: u.name, role: u.role })), backendVersion: 4 } };
         }
 
         case "getSettings":
@@ -810,7 +815,7 @@
           return {
             ok: true,
             data: {
-              version: d.db.version, timestamp: F.nowStamp(), mode: "demo",
+              version: d.db.version, timestamp: F.nowStamp(), mode: "demo", fingerprint: fp(d.db),
               settings: d.db.settings,
               users: d.db.users.map(u => ({ id: u.id, name: u.name, role: u.role, active: u.active, createdAt: u.createdAt })),
               masters: d.db.masters,
