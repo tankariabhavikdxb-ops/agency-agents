@@ -183,7 +183,7 @@
           ok: false,
           error: {
             code: "BLOCKED",
-            message: "The backend URL responds, but the app could not read a valid reply from it — both the direct channel and the CORS-proof fallback channel failed. Most common cause: the backend script is OUTDATED. The fallback channel only exists in backend/Code.gs v" + need + "+ — replace ALL the code in your Apps Script project with the latest backend/Code.gs, then Deploy ▸ Manage deployments ▸ Edit ▸ Version: “New version” ▸ Deploy (the URL stays the same). If the backend IS already updated, your browser/network is blocking script.google.com — disable ad-blockers/privacy extensions, try another browser, or use Hosted mode (README, Option C).",
+            message: "The backend URL responds, but the app could not read a valid reply from it — both the direct channel and the CORS-proof fallback channel failed. Most common cause: the backend script is OUTDATED. The fallback channel only exists in backend/Code.gs v" + need + "+ — replace ALL the code in your Apps Script project with the latest backend/Code.gs, then Deploy ▸ Manage deployments ▸ Edit ▸ Version: “New version” ▸ Deploy (the URL stays the same). Self-check in your browser: open your URL with “?cb=nxprobe&p={}” at the end — if the backend is v" + need + "+ the page shows “nxprobe({…backendVersion:…})”. If you see the “backend is ONLINE” landing page instead, the new version is not deployed yet. If the self-check DOES show nxprobe, then your browser/network is blocking script.google.com — disable ad-blockers/privacy extensions, try another browser, or use Hosted mode (README, Option C).",
           },
         };
       }

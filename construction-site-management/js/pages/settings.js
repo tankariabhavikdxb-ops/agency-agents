@@ -49,6 +49,7 @@
               <summary>Connection help — 30-second check</summary>
               <ol>
                 <li>Open the Web App URL in a normal browser tab. You must see the <b>“backend is ONLINE”</b> page — with <b>no Google sign-in</b>.</li>
+                <li><b>Backend version self-check:</b> open your URL with <code>?cb=nxprobe&amp;p={}</code> appended. Backend v3+ shows <b>“nxprobe({…backendVersion:3…})”</b>. If you see the landing page instead, the new script version is not deployed yet.</li>
                 <li>If it asks you to <b>sign in to Google</b> → Deploy ▸ Manage deployments ▸ ✏️ Edit ▸ “Who has access”: <b>Anyone</b> ▸ Deploy. Then copy the <b>new</b> /exec URL.</li>
                 <li>If you see “Sorry, unable to open the file” → the deployment type is wrong → Deploy ▸ New deployment ▸ <b>Web app</b>.</li>
                 <li>Make sure the URL ends with <b>/exec</b> (not /dev or /edit) and paste it above → <b>Test &amp; Connect</b>.</li>

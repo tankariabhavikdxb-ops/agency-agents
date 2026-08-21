@@ -22,6 +22,34 @@ function read(p) { return fs.readFileSync(path.join(root, p), "utf8"); }
 function escapeScript(code) { return code.replace(/<\/script/gi, "<\\/script"); }
 function kb(n) { return (n / 1024).toFixed(1) + " KB"; }
 
+/* ---- vendored Chart.js (tracked in vendor/) with CDN fallback ---- */
+function loadChartJs() {
+  const local = path.join(root, "vendor", "chart.umd.min.js");
+  if (fs.existsSync(local)) return fs.readFileSync(local, "utf8");
+  // offline fallback: fetch the pinned Chart.js build from the CDN
+  const cp = require("child_process");
+  const url = "https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js";
+  try {
+    const out = cp.execSync('curl -fsSL --max-time 60 "' + url + '"', { encoding: "utf8", maxBuffer: 20 * 1024 * 1024 });
+    if (out && out.indexOf("Chart.js v4.4.3") >= 0) {
+      fs.mkdirSync(path.join(root, "vendor"), { recursive: true });
+      fs.writeFileSync(local, out);
+      console.log("   (downloaded Chart.js v4.4.3 from the CDN into vendor/)");
+      return out;
+    }
+  } catch (e) { /* fall through */ }
+  throw new Error("Chart.js v4.4.3 not found in vendor/ and the CDN is unreachable.\n" +
+    "Fix:  npm install chart.js@4.4.3   then copy node_modules/chart.js/dist/chart.umd.js to vendor/chart.umd.min.js");
+}
+
+/* ---- logo (tracked in assets/) ---- */
+function loadLogoB64() {
+  const small = path.join(root, "assets", "logo-64.png");
+  const full = path.join(root, "assets", "logo.png");
+  const file = fs.existsSync(small) ? small : full;
+  return fs.readFileSync(file).toString("base64");
+}
+
 let html = read("index.html");
 
 // 1. inline stylesheets (screen + print)
@@ -34,12 +62,11 @@ for (const [tag, css] of [
 }
 
 // 2. inline the logo as a data-URI favicon
-const logoB64 = fs.readFileSync(path.join(root, "build", "logo-64.png")).toString("base64");
 html = html.replace('<link rel="icon" href="assets/logo.png" />',
-  '<link rel="icon" href="data:image/png;base64,' + logoB64 + '" />');
+  '<link rel="icon" href="data:image/png;base64,' + loadLogoB64() + '" />');
 
 // 3. inline Chart.js (vendored copy — reports work fully offline)
-const chartJs = read("build/chart.umd.min.js");
+const chartJs = loadChartJs();
 const chartTag = '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>';
 if (!html.includes(chartTag)) throw new Error("chart.js script tag not found");
 html = html.replace(chartTag, "<script>\n/* Chart.js v4.4.3 — vendored & inlined (MIT License) */\n" + escapeScript(chartJs) + "\n</script>");
