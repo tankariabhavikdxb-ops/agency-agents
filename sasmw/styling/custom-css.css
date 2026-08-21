@@ -1,0 +1,168 @@
+/*
+ * SASMW.com — Custom CSS (dark sporty theme)
+ * Brand palette:
+ *   Primary #1B2A4A (deep navy) | Secondary #00C853 (green)
+ *   Accent  #FF1744 (red)       | Gold #FFD700
+ *   BG      #1A1A2E (charcoal)  | Text #FFFFFF / #E0E0E0
+ *
+ * Add in Elementor → Custom CSS (per site) OR a child-theme stylesheet,
+ * or Appearance → Customize → Additional CSS.
+ */
+
+:root {
+  --sas-navy: #1B2A4A;
+  --sas-green: #00C853;
+  --sas-red: #FF1744;
+  --sas-gold: #FFD700;
+  --sas-bg: #1A1A2E;
+  --sas-card: #20203a;
+  --sas-white: #FFFFFF;
+  --sas-light: #E0E0E0;
+}
+
+body {
+  background-color: var(--sas-bg);
+  color: var(--sas-light);
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Montserrat', 'Oswald', sans-serif;
+  font-weight: 700;
+  color: var(--sas-white);
+  letter-spacing: -0.5px;
+}
+
+/* Sporty accent headline font for numbers/labels */
+.sas-sporty {
+  font-family: 'Oswald', 'Bebas Neue', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Buttons */
+a.sas-btn, .sas-btn, .elementor-button {
+  border-radius: 8px !important;
+  font-weight: 700;
+}
+.sas-btn-green {
+  background: var(--sas-green) !important;
+  color: #002200 !important;
+}
+.sas-btn-green:hover { background: #00e65c !important; }
+.sas-btn-red {
+  background: var(--sas-red) !important;
+  color: #fff !important;
+}
+.sas-btn-red:hover { background: #ff3b5c !important; }
+.sas-btn-navy {
+  background: var(--sas-navy) !important;
+  color: var(--sas-white) !important;
+  border: 1px solid #2c3e66;
+}
+
+/* Sticky header CTA */
+.sas-buy-tickets-cta {
+  background: var(--sas-green) !important;
+  color: #002200 !important;
+  font-weight: 800 !important;
+  padding: 10px 20px !important;
+  border-radius: 8px;
+}
+.sas-buy-tickets-cta:hover { background: #00e65c !important; }
+
+/* Match cards */
+.sas-match-card {
+  background: linear-gradient(160deg, var(--sas-card), var(--sas-navy));
+  border: 1px solid #2c3e66;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.sas-match-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 30px rgba(0,0,0,.45);
+}
+.sas-match-card .sas-teams {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--sas-white);
+}
+.sas-match-card .sas-vs { color: var(--sas-gold); font-weight: 900; }
+.sas-match-card .sas-meta { color: var(--sas-light); font-size: 13px; }
+.sas-match-card .sas-price { color: var(--sas-green); font-weight: 700; }
+.sas-match-card .sas-soldout { color: var(--sas-red); font-weight: 700; text-transform: uppercase; }
+.sas-match-card .sas-sellingfast { color: var(--sas-gold); font-weight: 700; text-transform: uppercase; }
+
+/* Availability badges */
+.sas-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+.sas-badge.available { background: rgba(0,200,83,.15); color: var(--sas-green); }
+.sas-badge.selling-fast { background: rgba(255,215,0,.15); color: var(--sas-gold); }
+.sas-badge.sold-out { background: rgba(255,23,68,.15); color: var(--sas-red); }
+
+/* Stats counters */
+.sas-stat { text-align: center; }
+.sas-stat .sas-stat-number {
+  font-family: 'Oswald', sans-serif;
+  font-size: 44px;
+  font-weight: 700;
+  color: var(--sas-gold);
+}
+.sas-stat .sas-stat-label { color: var(--sas-light); text-transform: uppercase; letter-spacing: 1px; font-size: 13px; }
+
+/* News ticker bar */
+.sas-ticker {
+  background: var(--sas-navy);
+  color: var(--sas-white);
+  border-top: 2px solid var(--sas-green);
+  border-bottom: 1px solid #2c3e66;
+}
+.sas-ticker-label {
+  background: var(--sas-red);
+  color: #fff;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 4px 12px;
+  border-radius: 4px;
+  margin-right: 12px;
+}
+
+/* Testimonials */
+.sas-testimonial { background: var(--sas-card); border-left: 4px solid var(--sas-green); border-radius: 8px; padding: 18px; }
+.sas-testimonial .sas-quote { color: var(--sas-light); font-style: italic; }
+.sas-testimonial .sas-author { color: var(--sas-gold); font-weight: 700; }
+
+/* Newsletter */
+.sas-newsletter input[type=email] {
+  background: #12122a; color: #fff; border: 1px solid #2c3e66; border-radius: 8px; padding: 12px;
+}
+.sas-newsletter button { background: var(--sas-green); color: #002200; border: none; border-radius: 8px; padding: 12px 20px; font-weight: 700; }
+
+/* Footer */
+.sas-footer { background: #14142a; color: var(--sas-light); }
+.sas-footer a { color: var(--sas-light); }
+.sas-footer a:hover { color: var(--sas-green); }
+.sas-footer .sas-copyright { border-top: 1px solid #2c3e66; color: #999; font-size: 13px; }
+
+/* FAQ accordion */
+.sas-faq-item { background: var(--sas-card); border: 1px solid #2c3e66; border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
+.sas-faq-q { padding: 14px 18px; font-weight: 700; color: var(--sas-white); cursor: pointer; }
+.sas-faq-a { padding: 0 18px 14px; color: var(--sas-light); }
+
+/* E-ticket preview */
+.sas-eticket { background: var(--sas-card); border: 1px dashed var(--sas-green); border-radius: 12px; padding: 24px; max-width: 520px; }
+.sas-eticket .sas-ticket-id { font-family: monospace; color: var(--sas-gold); font-size: 18px; }
+
+/* Responsive tweaks */
+@media (max-width: 767px) {
+  .sas-stat .sas-stat-number { font-size: 32px; }
+  .sas-match-card .sas-teams { font-size: 17px; }
+}
+
+/* Hero gradient overlay */
+.sas-hero-overlay {
+  background: linear-gradient(180deg, rgba(26,26,46,.55) 0%, rgba(26,26,46,.85) 100%);
+}
+
+/* Price tag */
+.sas-price-tag { color: var(--sas-green); font-weight: 800; }
