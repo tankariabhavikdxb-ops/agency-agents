@@ -1,0 +1,2440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nexora Limited — Construction Site Management System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+/* ============================ DESIGN TOKENS ============================ */
+:root{
+  --primary:#1a1a2e; --primary-light:#16213e; --accent:#e94560; --accent-hover:#c81e45;
+  --success:#27ae60; --warning:#f39c12; --danger:#e74c3c; --info:#3498db;
+  --white:#ffffff; --light-gray:#f5f5f5; --medium-gray:#e0e0e0; --dark-gray:#333333;
+  --text-primary:#2c3e50; --text-secondary:#7f8c8d;
+  --shadow:0 2px 10px rgba(0,0,0,0.1); --border-radius:8px;
+  --sidebar-w:250px; --topbar-h:60px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{font-size:14px}
+body{font-family:'Poppins',sans-serif;background:var(--light-gray);color:var(--text-primary);font-size:14px;line-height:1.5}
+h1{font-size:24px}h2{font-size:20px}h3{font-size:16px}
+small,.small{font-size:12px}
+a{color:var(--info);text-decoration:none}
+mark{background:#ffe08a;border-radius:2px;padding:0 1px}
+
+/* ============================ BUTTONS ============================ */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border:none;border-radius:var(--border-radius);
+  font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:all .18s;background:var(--medium-gray);color:var(--text-primary);white-space:nowrap}
+.btn:hover{filter:brightness(.95);transform:translateY(-1px)}
+.btn:disabled{opacity:.55;cursor:not-allowed;transform:none}
+.btn-accent{background:var(--accent);color:#fff}.btn-accent:hover{background:var(--accent-hover)}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-success{background:var(--success);color:#fff}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-info{background:var(--info);color:#fff}
+.btn-light{background:#fff;border:1px solid var(--medium-gray)}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-icon{padding:6px 9px;background:transparent;border:none;cursor:pointer;border-radius:6px;font-size:14px;color:var(--text-secondary);transition:all .15s}
+.btn-icon:hover{background:var(--light-gray);color:var(--text-primary)}
+.btn-icon.edit:hover{color:var(--info)}.btn-icon.del:hover{color:var(--danger)}.btn-icon.view:hover{color:var(--success)}
+
+/* ============================ LOGIN ============================ */
+#page-login{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:500;
+  background:linear-gradient(135deg,#1a1a2e 0%,#16213e 45%,#0f3460 75%,#533483 100%)}
+#page-login::before{content:"";position:absolute;inset:0;opacity:.06;
+  background-image:repeating-linear-gradient(45deg,#fff 0 2px,transparent 2px 40px),repeating-linear-gradient(-45deg,#fff 0 2px,transparent 2px 40px)}
+.login-card{position:relative;width:400px;max-width:92vw;background:#fff;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.45);padding:36px 32px;z-index:2}
+.login-logo{width:64px;height:64px;margin:0 auto 12px;border-radius:16px;background:linear-gradient(135deg,var(--accent),#903749);
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:28px}
+.login-card h1{text-align:center;font-size:22px;color:var(--primary)}
+.login-card .sub{text-align:center;color:var(--text-secondary);font-size:12px;margin-bottom:22px}
+.login-field{margin-bottom:14px}
+.login-field label{display:block;font-size:12px;font-weight:600;margin-bottom:5px;color:var(--text-primary)}
+.login-field select,.login-field input{width:100%;padding:10px 12px;border:1.5px solid var(--medium-gray);border-radius:var(--border-radius);font-family:inherit;font-size:13px;outline:none;transition:border .15s}
+.login-field select:focus,.login-field input:focus{border-color:var(--accent)}
+#login-error{display:none;background:#fdecea;color:var(--danger);border:1px solid #f5c6cb;border-radius:6px;padding:8px 12px;font-size:12px;margin-bottom:12px}
+#btn-login{width:100%;justify-content:center;padding:11px;font-size:14px;margin-top:4px}
+.login-footer{text-align:center;margin-top:18px;font-size:11px;color:var(--text-secondary)}
+
+/* ============================ APP SHELL ============================ */
+#app{display:none}
+#sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);background:var(--primary);color:#e8e8ef;z-index:100;
+  display:flex;flex-direction:column;transition:transform .25s;overflow-y:auto}
+.sb-brand{display:flex;align-items:center;gap:10px;padding:16px;border-bottom:1px solid rgba(255,255,255,.08)}
+.sb-brand .logo{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#903749);display:flex;align-items:center;justify-content:center;font-size:17px;color:#fff;flex-shrink:0}
+.sb-brand b{font-size:15px;display:block;line-height:1.2}
+.sb-brand small{font-size:10px;color:#9aa0b5}
+.sb-nav{flex:1;padding:10px 0}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 18px;cursor:pointer;font-size:13px;color:#c6cadb;transition:all .15s;border-left:3px solid transparent}
+.nav-item:hover{background:rgba(255,255,255,.06);color:#fff}
+.nav-item.active{background:rgba(233,69,96,.14);border-left-color:var(--accent);color:#fff}
+.nav-item i{width:18px;text-align:center}
+.nav-group-title{display:flex;align-items:center;justify-content:space-between;padding:10px 18px;cursor:pointer;font-size:13px;font-weight:600;color:#c6cadb}
+.nav-group-title:hover{color:#fff}
+.nav-group-title .chev{transition:transform .2s;font-size:11px}
+.nav-group.open .chev{transform:rotate(180deg)}
+.nav-sub{display:none}
+.nav-group.open .nav-sub{display:block}
+.nav-sub .nav-item{padding-left:40px;font-size:12.5px}
+.sb-user{padding:12px 16px;border-top:1px solid rgba(255,255,255,.08);font-size:12px;color:#9aa0b5}
+
+#main-wrap{margin-left:var(--sidebar-w);min-height:100vh;display:flex;flex-direction:column;transition:margin .25s}
+#topbar{position:sticky;top:0;height:var(--topbar-h);background:#fff;box-shadow:var(--shadow);display:flex;align-items:center;gap:14px;padding:0 18px;z-index:90}
+#hamburger{display:none}
+#topbar .tb-title{font-weight:600;font-size:16px;color:var(--primary)}
+#topbar .tb-right{margin-left:auto;display:flex;align-items:center;gap:14px}
+#sync-indicator{font-size:11px;color:var(--text-secondary);display:flex;align-items:center;gap:5px}
+#sync-indicator .dot{width:8px;height:8px;border-radius:50%;background:var(--success);display:inline-block}
+#sync-indicator.stale .dot{background:var(--warning)}
+#live-clock{font-size:12px;color:var(--text-secondary);font-variant-numeric:tabular-nums}
+.tb-user{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500}
+.tb-user .avatar{width:32px;height:32px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600}
+#update-banner{display:none;background:var(--info);color:#fff;padding:8px 18px;font-size:13px;cursor:pointer;text-align:center}
+#config-banner{display:none;background:var(--warning);color:#fff;padding:8px 18px;font-size:12.5px;text-align:center}
+#content{flex:1;padding:20px}
+#app-footer{padding:14px 20px;text-align:center;color:var(--text-secondary);font-size:12px;border-top:1px solid var(--medium-gray);background:#fff}
+
+/* ============================ PAGES / BREADCRUMB ============================ */
+.page{display:none;animation:fadeIn .25s}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.breadcrumb{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text-secondary);margin-bottom:14px;flex-wrap:wrap}
+.breadcrumb a{color:var(--info);cursor:pointer}
+.breadcrumb i{font-size:9px}
+.page-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.page-head h1{font-size:21px;display:flex;align-items:center;gap:10px}
+.page-head h1 i{color:var(--accent)}
+.page-head .head-btns{display:flex;gap:8px;flex-wrap:wrap}
+
+/* ============================ CARDS / KPI ============================ */
+.card{background:#fff;border-radius:var(--border-radius);box-shadow:var(--shadow);padding:18px;margin-bottom:18px}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:18px}
+.kpi-card{background:#fff;border-radius:var(--border-radius);box-shadow:var(--shadow);padding:16px;display:flex;gap:13px;align-items:center;border-left:4px solid var(--accent)}
+.kpi-card .kpi-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0}
+.kpi-card .kpi-val{font-size:17px;font-weight:700;line-height:1.2;word-break:break-word}
+.kpi-card .kpi-lbl{font-size:11px;color:var(--text-secondary);font-weight:500;text-transform:uppercase;letter-spacing:.4px}
+.kpi-card .kpi-sub{font-size:11px;color:var(--text-secondary)}
+.charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px;margin-bottom:18px}
+.chart-card{background:#fff;border-radius:var(--border-radius);box-shadow:var(--shadow);padding:16px}
+.chart-card h3{font-size:13.5px;margin-bottom:10px;color:var(--text-primary);display:flex;align-items:center;gap:8px}
+.chart-card h3 i{color:var(--accent)}
+.chart-wrap{position:relative;height:260px}
+.quick-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:18px}
+.quick-card{background:#fff;border-radius:var(--border-radius);box-shadow:var(--shadow);padding:18px;text-align:center;cursor:pointer;transition:all .18s;border:2px solid transparent}
+.quick-card:hover{border-color:var(--accent);transform:translateY(-3px)}
+.quick-card i{font-size:24px;color:var(--accent);margin-bottom:8px;display:block}
+.quick-card span{font-weight:600;font-size:13px}
+.activity-item{display:flex;gap:10px;padding:9px 0;border-bottom:1px dashed var(--medium-gray);font-size:12.5px;align-items:flex-start}
+.activity-item:last-child{border-bottom:none}
+.activity-item .act-ic{width:28px;height:28px;border-radius:50%;background:var(--light-gray);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+.activity-item .act-time{margin-left:auto;color:var(--text-secondary);font-size:11px;white-space:nowrap}
+
+/* ============================ ACTION / FILTER BARS ============================ */
+.action-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.action-bar .spacer{flex:1}
+.search-box{position:relative;min-width:220px}
+.search-box input{width:100%;padding:8px 12px 8px 32px;border:1.5px solid var(--medium-gray);border-radius:var(--border-radius);font-family:inherit;font-size:13px;outline:none}
+.search-box input:focus{border-color:var(--accent)}
+.search-box i{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text-secondary);font-size:12px}
+.filter-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;font-size:12.5px}
+.filter-bar label{font-weight:600;color:var(--text-secondary)}
+.filter-bar select{padding:7px 10px;border:1.5px solid var(--medium-gray);border-radius:6px;font-family:inherit;font-size:12.5px;outline:none;background:#fff}
+
+/* ============================ TABLES ============================ */
+.table-wrap{background:#fff;border-radius:var(--border-radius);box-shadow:var(--shadow);overflow-x:auto}
+table.data-table{width:100%;border-collapse:collapse;font-size:12.8px;min-width:640px}
+table.data-table th{background:var(--primary);color:#fff;text-align:left;padding:10px 12px;font-weight:600;font-size:12px;white-space:nowrap;position:sticky;top:0}
+table.data-table th.sortable{cursor:pointer;user-select:none}
+table.data-table th.sortable:hover{background:var(--primary-light)}
+table.data-table th .sort-ic{margin-left:5px;font-size:10px;opacity:.7}
+table.data-table td{padding:9px 12px;border-bottom:1px solid #eef0f3;vertical-align:middle}
+table.data-table tbody tr:nth-child(even){background:#fafbfc}
+table.data-table tbody tr:hover{background:#f0f4f8}
+table.data-table tfoot td{font-weight:700;background:#f2f4f7;border-top:2px solid var(--medium-gray)}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.pagination{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;font-size:12px;color:var(--text-secondary);flex-wrap:wrap}
+.pagination .pg-btns{display:flex;gap:6px}
+.empty-state{text-align:center;padding:44px 16px;color:var(--text-secondary)}
+.empty-state i{font-size:38px;margin-bottom:10px;opacity:.35;display:block}
+
+/* ============================ BADGES / PROGRESS ============================ */
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+.badge-green{background:#e8f7ef;color:var(--success)}
+.badge-yellow{background:#fdf3e0;color:#c07c08}
+.badge-red{background:#fdecea;color:var(--danger)}
+.badge-blue{background:#e8f2fc;color:var(--info)}
+.badge-gray{background:#eef0f3;color:var(--text-secondary)}
+.progress{background:#eef0f3;border-radius:20px;height:9px;overflow:hidden;min-width:70px}
+.progress-bar{height:100%;border-radius:20px;transition:width .3s;background:var(--success)}
+.progress-bar.warn{background:var(--warning)}
+.progress-bar.over{background:var(--danger)}
+.util-cell{display:flex;align-items:center;gap:8px;min-width:130px}
+.util-cell span{font-size:11.5px;font-weight:600;white-space:nowrap}
+.pl-pos{color:var(--success);font-weight:600}
+.pl-neg{color:var(--danger);font-weight:600}
+
+/* ============================ FORMS ============================ */
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+.form-field{display:flex;flex-direction:column;gap:5px}
+.form-field.full{grid-column:1/-1}
+.form-field label{font-size:12px;font-weight:600;color:var(--text-primary)}
+.form-field label .req{color:var(--danger)}
+.form-field input,.form-field select,.form-field textarea{padding:9px 12px;border:1.5px solid var(--medium-gray);border-radius:var(--border-radius);font-family:inherit;font-size:13px;outline:none;transition:border .15s;background:#fff;width:100%}
+.form-field input:focus,.form-field select:focus,.form-field textarea:focus{border-color:var(--accent)}
+.form-field input[readonly],.form-field input:disabled{background:#f0f1f3;color:var(--text-secondary);cursor:not-allowed}
+.form-field.has-error input,.form-field.has-error select,.form-field.has-error textarea{border-color:var(--danger)}
+.field-error{font-size:11px;color:var(--danger);display:none}
+.form-field.has-error .field-error{display:block}
+.form-hint{font-size:11px;color:var(--text-secondary)}
+
+/* ============================ SEARCH DROPDOWN ============================ */
+.sdd{position:relative}
+.sdd-input-wrap{position:relative;display:flex;align-items:center}
+.sdd-input{width:100%;padding:9px 56px 9px 12px;border:1.5px solid var(--medium-gray);border-radius:var(--border-radius);font-family:inherit;font-size:13px;outline:none;background:#fff}
+.sdd-input:focus{border-color:var(--accent)}
+.sdd.disabled .sdd-input{background:#f0f1f3;color:var(--text-secondary);cursor:not-allowed}
+.sdd-clear{position:absolute;right:30px;background:none;border:none;cursor:pointer;color:var(--text-secondary);font-size:13px;padding:4px;display:none}
+.sdd.has-value .sdd-clear{display:block}
+.sdd-arrow{position:absolute;right:10px;color:var(--text-secondary);font-size:11px;pointer-events:none}
+.sdd-list{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid var(--medium-gray);border-radius:var(--border-radius);
+  box-shadow:0 8px 24px rgba(0,0,0,.14);max-height:230px;overflow-y:auto;z-index:300;display:none}
+.sdd.open .sdd-list{display:block}
+.sdd-item{padding:8px 12px;cursor:pointer;font-size:12.8px;border-bottom:1px solid #f4f5f7}
+.sdd-item:last-child{border-bottom:none}
+.sdd-item:hover,.sdd-item.hl{background:#f0f4f8}
+.sdd-item.sel{background:rgba(233,69,96,.09);font-weight:600}
+.sdd-empty{padding:12px;text-align:center;color:var(--text-secondary);font-size:12.5px}
+.sdd-item .sdd-sub{display:block;font-size:11px;color:var(--text-secondary)}
+
+/* ============================ MODAL / SLIDE PANEL ============================ */
+.modal-overlay{position:fixed;inset:0;background:rgba(15,20,40,.55);z-index:400;display:flex;justify-content:flex-end;animation:fadeIn .18s}
+.modal-panel{width:560px;max-width:96vw;background:#fff;height:100%;display:flex;flex-direction:column;box-shadow:-8px 0 30px rgba(0,0,0,.25);animation:slideIn .25s}
+@keyframes slideIn{from{transform:translateX(60px);opacity:0}to{transform:none;opacity:1}}
+.modal-panel.center{height:auto;max-height:92vh;margin:auto;border-radius:12px;width:520px;animation:popIn .2s}
+@keyframes popIn{from{transform:scale(.94);opacity:0}to{transform:none;opacity:1}}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--medium-gray);background:var(--primary);color:#fff;border-radius:inherit inherit 0 0}
+.modal-head h3{font-size:15px;display:flex;align-items:center;gap:9px}
+.modal-head .btn-icon{color:#cfd2e0}
+.modal-head .btn-icon:hover{background:rgba(255,255,255,.12);color:#fff}
+.modal-body{padding:20px;overflow-y:auto;flex:1}
+.modal-foot{padding:14px 20px;border-top:1px solid var(--medium-gray);display:flex;justify-content:flex-end;gap:9px;background:#fafbfc}
+
+/* ============================ TOASTS / SPINNER / CONFIRM ============================ */
+#toast-root{position:fixed;top:16px;right:16px;z-index:900;display:flex;flex-direction:column;gap:9px;max-width:360px}
+.toast{display:flex;align-items:flex-start;gap:10px;background:#fff;border-radius:var(--border-radius);box-shadow:0 8px 24px rgba(0,0,0,.18);
+  padding:12px 14px;font-size:12.8px;border-left:4px solid var(--info);animation:toastIn .3s}
+@keyframes toastIn{from{transform:translateX(60px);opacity:0}to{transform:none;opacity:1}}
+.toast.out{transition:all .3s;transform:translateX(60px);opacity:0}
+.toast-success{border-left-color:var(--success)}.toast-success i{color:var(--success)}
+.toast-error{border-left-color:var(--danger)}.toast-error i{color:var(--danger)}
+.toast-warn{border-left-color:var(--warning)}.toast-warn i{color:var(--warning)}
+.toast-info i{color:var(--info)}
+#spinner-overlay{position:fixed;inset:0;background:rgba(255,255,255,.65);z-index:950;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+#spinner-overlay.show{display:flex}
+.spinner{width:44px;height:44px;border:4px solid var(--medium-gray);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#spinner-overlay .sp-text{font-size:13px;color:var(--text-primary);font-weight:500}
+
+/* ============================ EXPENSE / TRACKER ============================ */
+.step-label{display:flex;align-items:center;gap:9px;font-weight:600;font-size:13.5px;margin:16px 0 9px;color:var(--primary)}
+.step-label .step-num{width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+.tracker-box{background:linear-gradient(135deg,#1a1a2e,#16213e);color:#fff;border-radius:10px;padding:16px 18px;margin:14px 0}
+.tracker-box h4{font-size:13px;margin-bottom:10px;display:flex;gap:8px;align-items:center}
+.tracker-row{display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0;font-variant-numeric:tabular-nums}
+.tracker-row b{font-variant-numeric:tabular-nums}
+.tracker-box .progress{background:rgba(255,255,255,.18);height:11px;margin:10px 0 6px}
+.tracker-status{font-size:12.5px;font-weight:600;margin-top:6px}
+.overrun-alert{background:#fdecea;border:1.5px solid var(--danger);color:#98241a;border-radius:var(--border-radius);padding:12px 14px;font-size:12.8px;margin:12px 0;display:none}
+.readonly-grid{background:#f6f7f9;border:1px dashed var(--medium-gray);border-radius:var(--border-radius);padding:14px;margin:10px 0}
+
+/* ============================ REPORTS ============================ */
+.rpt-filters{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px}
+.rpt-filters .form-field{min-width:210px;flex:0 1 240px}
+.pnl-box{max-width:640px;margin:0 auto;background:#fff;border:1px solid var(--medium-gray);border-radius:10px;overflow:hidden}
+.pnl-head{background:var(--primary);color:#fff;padding:14px 20px;text-align:center}
+.pnl-head h3{font-size:15px}
+.pnl-head small{color:#aab}
+.pnl-section{padding:10px 22px;border-bottom:1px solid #eef0f3}
+.pnl-section h4{font-size:12.5px;color:var(--accent);margin:7px 0;text-transform:uppercase;letter-spacing:.5px}
+.pnl-row{display:flex;justify-content:space-between;padding:4px 0;font-size:13px;font-variant-numeric:tabular-nums}
+.pnl-row.total{font-weight:700;border-top:1.5px solid var(--medium-gray);margin-top:5px;padding-top:7px}
+.pnl-row.grand{font-weight:700;font-size:14.5px}
+.legend-dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px}
+
+/* ============================ PRINT ============================ */
+#print-header{display:none}
+@media print{
+  body{background:#fff}
+  #sidebar,#topbar,#update-banner,#config-banner,#app-footer,.action-bar,.filter-bar,.rpt-filters,.page-head .head-btns,
+  .breadcrumb,.pagination,.no-print,#toast-root,#spinner-overlay,.btn,.btn-icon,th.col-actions,td.col-actions{display:none !important}
+  #main-wrap{margin-left:0}
+  #content{padding:0}
+  .card,.table-wrap,.chart-card{box-shadow:none;border:1px solid #ccc}
+  #print-header{display:block;text-align:center;border-bottom:2px solid #1a1a2e;padding-bottom:10px;margin-bottom:16px}
+  #print-header h2{font-size:18px}
+  #print-header p{font-size:11px;color:#555}
+  #print-footer-line{display:block !important;text-align:center;font-size:10px;color:#666;margin-top:20px;border-top:1px solid #ccc;padding-top:8px}
+  table.data-table th{background:#1a1a2e !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+#print-footer-line{display:none}
+
+/* ============================ RESPONSIVE ============================ */
+@media (max-width:1024px){
+  #sidebar{transform:translateX(-100%)}
+  #sidebar.open{transform:none;box-shadow:0 0 40px rgba(0,0,0,.4)}
+  #main-wrap{margin-left:0}
+  #hamburger{display:inline-flex}
+  #sidebar-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:99;display:none}
+  #sidebar-backdrop.show{display:block}
+}
+@media (max-width:640px){
+  #content{padding:12px}
+  #live-clock{display:none}
+  .tb-user .tb-name{display:none}
+  .kpi-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+  .charts-grid{grid-template-columns:1fr !important}
+  .modal-panel{width:100vw}
+  .page-head h1{font-size:17px}
+}
+</style>
+</head>
+<body>
+<!-- ============================ LOGIN PAGE ============================ -->
+<div id="page-login">
+  <div class="login-card">
+    <div class="login-logo"><i class="fa-solid fa-helmet-safety"></i></div>
+    <h1>Nexora Limited</h1>
+    <div class="sub">Construction Site Management System<br>Corporate Mall, 1st Floor, Office Block B, Chilambula Road, Lilongwe, Malawi</div>
+    <div id="login-config-note" style="display:none;background:#fdf3e0;border:1px solid #f0d9a8;border-radius:6px;padding:8px 12px;font-size:11.5px;color:#8a5d00;margin-bottom:12px">
+      <i class="fa-solid fa-triangle-exclamation"></i> Backend not configured. Open this file in a text editor and replace <b>YOUR_GOOGLE_APPS_SCRIPT_URL_HERE</b> with your deployed Apps Script Web App URL.
+    </div>
+    <div id="login-error"></div>
+    <div class="login-field">
+      <label><i class="fa-solid fa-user"></i> Username</label>
+      <select id="login-user">
+        <option value="">— Select user —</option>
+        <option value="prashant">Prashant Khatri (prashant)</option>
+        <option value="shakeel">Shakeel Patel (shakeel)</option>
+        <option value="bhavik">Bhavik Tankaria (bhavik)</option>
+        <option value="tanjani">Tanjani Malima (tanjani)</option>
+        <option value="davie">Davie Chavula (davie)</option>
+      </select>
+    </div>
+    <div class="login-field">
+      <label><i class="fa-solid fa-lock"></i> Password</label>
+      <input type="password" id="login-pass" placeholder="Enter password" autocomplete="current-password">
+    </div>
+    <button class="btn btn-accent" id="btn-login"><i class="fa-solid fa-right-to-bracket"></i> Login</button>
+    <div class="login-footer">&copy; 2025 Nexora Limited &middot; All rights reserved</div>
+  </div>
+</div>
+
+<!-- ============================ APP SHELL ============================ -->
+<div id="app">
+  <div id="sidebar-backdrop" onclick="toggleSidebar(false)"></div>
+  <aside id="sidebar">
+    <div class="sb-brand">
+      <div class="logo"><i class="fa-solid fa-helmet-safety"></i></div>
+      <div><b>Nexora Limited</b><small>Site Management System</small></div>
+    </div>
+    <nav class="sb-nav" id="sb-nav">
+      <div class="nav-item" data-page="page-dashboard"><i class="fa-solid fa-chart-pie"></i> Dashboard</div>
+      <div class="nav-group open" id="grp-masters">
+        <div class="nav-group-title" onclick="toggleGroup('grp-masters')"><span><i class="fa-solid fa-clipboard-list"></i>&nbsp; Masters</span><i class="fa-solid fa-chevron-down chev"></i></div>
+        <div class="nav-sub">
+          <div class="nav-item" data-page="page-projects"><i class="fa-solid fa-building"></i> Projects</div>
+          <div class="nav-item" data-page="page-shops"><i class="fa-solid fa-store"></i> Shops</div>
+          <div class="nav-item" data-page="page-expense-heads"><i class="fa-solid fa-tags"></i> Expense Heads</div>
+          <div class="nav-item" data-page="page-materials"><i class="fa-solid fa-cubes"></i> Materials</div>
+          <div class="nav-item" data-page="page-units"><i class="fa-solid fa-ruler"></i> Units</div>
+          <div class="nav-item" data-page="page-suppliers"><i class="fa-solid fa-truck-field"></i> Suppliers</div>
+          <div class="nav-item" data-page="page-customers"><i class="fa-solid fa-user-tie"></i> Customers</div>
+        </div>
+      </div>
+      <div class="nav-group open" id="grp-trans">
+        <div class="nav-group-title" onclick="toggleGroup('grp-trans')"><span><i class="fa-solid fa-money-bill-transfer"></i>&nbsp; Transactions</span><i class="fa-solid fa-chevron-down chev"></i></div>
+        <div class="nav-sub">
+          <div class="nav-item" data-page="page-budget"><i class="fa-solid fa-file-invoice-dollar"></i> Budget Entries</div>
+          <div class="nav-item" data-page="page-contracts"><i class="fa-solid fa-file-signature"></i> Contracts / LPO / Invoice</div>
+          <div class="nav-item" data-page="page-expenses"><i class="fa-solid fa-money-bill-wave"></i> Actual Expenses</div>
+        </div>
+      </div>
+      <div class="nav-group" id="grp-reports">
+        <div class="nav-group-title" onclick="toggleGroup('grp-reports')"><span><i class="fa-solid fa-chart-line"></i>&nbsp; Reports</span><i class="fa-solid fa-chevron-down chev"></i></div>
+        <div class="nav-sub">
+          <div class="nav-item" data-page="page-rpt-budget-vs-actual"><i class="fa-solid fa-scale-balanced"></i> Budget vs Actual</div>
+          <div class="nav-item" data-page="page-rpt-profitability"><i class="fa-solid fa-sack-dollar"></i> Project Profitability</div>
+          <div class="nav-item" data-page="page-rpt-item-wise"><i class="fa-solid fa-boxes-stacked"></i> Item-wise Report</div>
+          <div class="nav-item" data-page="page-rpt-shop-wise"><i class="fa-solid fa-shop"></i> Shop-wise Report</div>
+          <div class="nav-item" data-page="page-rpt-project-wise"><i class="fa-solid fa-diagram-project"></i> Project-wise Report</div>
+          <div class="nav-item" data-page="page-rpt-pnl"><i class="fa-solid fa-file-invoice"></i> P&amp;L Statement</div>
+          <div class="nav-item" data-page="page-rpt-supplier-wise"><i class="fa-solid fa-truck"></i> Supplier-wise Report</div>
+        </div>
+      </div>
+    </nav>
+    <div class="sb-user" id="sb-user-info"></div>
+  </aside>
+
+  <div id="main-wrap">
+    <header id="topbar">
+      <button class="btn-icon" id="hamburger" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
+      <span class="tb-title" id="tb-title">Dashboard</span>
+      <div class="tb-right">
+        <span id="sync-indicator" title="Data sync status"><span class="dot"></span><span id="sync-text">Not synced yet</span></span>
+        <button class="btn-icon" onclick="syncAll(true)" title="Refresh data"><i class="fa-solid fa-rotate"></i></button>
+        <span id="live-clock"></span>
+        <div class="tb-user"><div class="avatar" id="tb-avatar"></div><span class="tb-name" id="tb-username"></span></div>
+        <button class="btn btn-sm btn-light" onclick="logout()" title="Logout"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
+      </div>
+    </header>
+    <div id="config-banner"><i class="fa-solid fa-triangle-exclamation"></i> Backend API is not configured — replace YOUR_GOOGLE_APPS_SCRIPT_URL_HERE in this file with your Apps Script Web App URL. Data cannot be loaded or saved until then.</div>
+    <div id="update-banner" onclick="syncAll(true);hideUpdateBanner()"><i class="fa-solid fa-circle-info"></i> Data has been updated. Click to refresh.</div>
+
+    <main id="content">
+      <div id="print-header">
+        <h2>Nexora Limited</h2>
+        <p>Corporate Mall, 1st Floor, Office Block B, Chilambula Road, Lilongwe, Malawi</p>
+        <p id="print-title" style="font-weight:600;font-size:13px;margin-top:4px"></p>
+      </div>
+
+      <div class="page" id="page-dashboard"></div>
+      <div class="page" id="page-projects"></div>
+      <div class="page" id="page-shops"></div>
+      <div class="page" id="page-expense-heads"></div>
+      <div class="page" id="page-materials"></div>
+      <div class="page" id="page-units"></div>
+      <div class="page" id="page-suppliers"></div>
+      <div class="page" id="page-customers"></div>
+      <div class="page" id="page-budget"></div>
+      <div class="page" id="page-contracts"></div>
+      <div class="page" id="page-expenses"></div>
+      <div class="page" id="page-rpt-budget-vs-actual"></div>
+      <div class="page" id="page-rpt-profitability"></div>
+      <div class="page" id="page-rpt-item-wise"></div>
+      <div class="page" id="page-rpt-shop-wise"></div>
+      <div class="page" id="page-rpt-project-wise"></div>
+      <div class="page" id="page-rpt-pnl"></div>
+      <div class="page" id="page-rpt-supplier-wise"></div>
+
+      <div id="print-footer-line"></div>
+    </main>
+    <footer id="app-footer">&copy; 2025 Nexora Limited — Construction Site Management System &middot; Corporate Mall, 1st Floor, Office Block B, Chilambula Road, Lilongwe, Malawi</footer>
+  </div>
+</div>
+
+<div id="modal-root"></div>
+<div id="confirm-root"></div>
+<div id="toast-root"></div>
+<div id="spinner-overlay"><div class="spinner"></div><div class="sp-text" id="spinner-text">Loading…</div></div>
+
+<script>
+'use strict';
+/* ============================================================================
+   NEXORA LIMITED — CONSTRUCTION SITE MANAGEMENT SYSTEM — FRONTEND (SPA)
+   ============================================================================ */
+
+// ============ CONFIGURATION ============
+// Replace with your deployed Google Apps Script Web App URL:
+const API_URL = 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE';
+const API_CONFIGURED = /^https:\/\//.test(API_URL);
+const POLL_INTERVAL_MS = 30000;
+const SESSION_KEY = 'nexora_session';
+const SESSION_HOURS = 12;
+
+// ============ HARDCODED SYSTEM USERS ============
+const USERS = [
+  { username:'prashant', password:'nexora2025', fullName:'Prashant Khatri', role:'Admin' },
+  { username:'shakeel',  password:'nexora2025', fullName:'Shakeel Patel',   role:'Admin' },
+  { username:'bhavik',   password:'nexora2025', fullName:'Bhavik Tankaria', role:'Admin' },
+  { username:'tanjani',  password:'nexora2025', fullName:'Tanjani Malima',  role:'Admin' },
+  { username:'davie',    password:'nexora2025', fullName:'Davie Chavula',   role:'Admin' }
+];
+
+// ============ GLOBAL STATE ============
+const DB = { Projects:[], Shops:[], ExpenseHeads:[], Materials:[], Units:[], Suppliers:[], Customers:[],
+             BudgetEntries:[], Contracts:[], ActualExpenses:[], AuditLog:[], Users:[] };
+let currentUser = null;
+let currentPage = 'page-dashboard';
+let lastSyncTime = null;
+let dataVersion = null;
+let pollTimer = null;
+let syncTickTimer = null;
+const charts = {};   // Chart.js registry
+
+// ============ FORMAT / UTILITY HELPERS ============
+function fmtMK(n){
+  const num = Number(n || 0);
+  const neg = num < 0;
+  const parts = Math.abs(num).toFixed(2).split('.');
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return (neg ? '(MK ' : 'MK ') + parts.join('.') + (neg ? ')' : '');
+}
+function fmtNum(n){
+  const num = Number(n || 0);
+  return num.toLocaleString('en-US', { maximumFractionDigits: 2 });
+}
+function fmtPct(n){ return (Number(n)||0).toFixed(1) + '%'; }
+function fmtDate(d){
+  if (!d) return '';
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return String(d);
+  return dt.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+}
+function fmtDT(d){
+  if (!d) return '';
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return String(d);
+  return dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) + ' ' + dt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+}
+function relTime(d){
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return '';
+  const s = Math.floor((Date.now() - dt.getTime()) / 1000);
+  if (s < 0) return 'just now';
+  if (s < 60) return s + ' sec ago';
+  if (s < 3600) return Math.floor(s/60) + ' min ago';
+  if (s < 86400) return Math.floor(s/3600) + ' hr ago';
+  return Math.floor(s/86400) + ' day(s) ago';
+}
+function esc(s){
+  return String(s === undefined || s === null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function todayISO(){ const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+function dateOnly(v){ return v ? String(v).substring(0,10) : ''; }
+function round2(n){ return Math.round(Number(n) * 100) / 100; }
+function uid(){ return 'el_' + Math.random().toString(36).slice(2, 10); }
+
+// ============ LOOKUP HELPERS ============
+function findRec(entity, idField, id){ return DB[entity].find(r => String(r[idField]) === String(id)) || null; }
+function projectName(id){ const r = findRec('Projects','ProjectID',id); return r ? r.ProjectName : (id || ''); }
+function shopName(id){ if(!id) return '—'; const r = findRec('Shops','ShopID',id); return r ? r.ShopName : id; }
+function expHeadName(id){ const r = findRec('ExpenseHeads','ExpHeadID',id); return r ? r.ExpHeadName : (id || ''); }
+function materialName(id){ const r = findRec('Materials','MaterialID',id); return r ? r.MaterialName : (id || ''); }
+function unitName(id){ const r = findRec('Units','UnitID',id); return r ? (r.UnitName + (r.Abbreviation ? ' (' + r.Abbreviation + ')' : '')) : (id || ''); }
+function unitAbbr(id){ const r = findRec('Units','UnitID',id); return r ? (r.Abbreviation || r.UnitName) : (id || ''); }
+function supplierName(id){ const r = findRec('Suppliers','SupplierID',id); return r ? r.SupplierName : (id || ''); }
+function customerName(id){ const r = findRec('Customers','CustomerID',id); return r ? r.CustomerName : (id || ''); }
+function spentByBudget(budgetId, excludeExpenseId){
+  return round2(DB.ActualExpenses
+    .filter(e => String(e.BudgetID) === String(budgetId) && (!excludeExpenseId || String(e.ExpenseID) !== String(excludeExpenseId)))
+    .reduce((t, e) => t + Number(e.TotalAmount || 0), 0));
+}
+function sumField(rows, f){ return round2(rows.reduce((t, r) => t + Number(r[f] || 0), 0)); }
+
+// ============ TOASTS ============
+function toast(msg, type){
+  type = type || 'info';
+  const icons = { success:'fa-circle-check', error:'fa-circle-xmark', warn:'fa-triangle-exclamation', info:'fa-circle-info' };
+  const el = document.createElement('div');
+  el.className = 'toast toast-' + type;
+  el.innerHTML = '<i class="fa-solid ' + icons[type] + '"></i><div>' + esc(msg) + '</div>';
+  document.getElementById('toast-root').appendChild(el);
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 350); }, 4000);
+}
+
+// ============ SPINNER ============
+function spinner(show, text){
+  const ov = document.getElementById('spinner-overlay');
+  document.getElementById('spinner-text').textContent = text || 'Loading…';
+  ov.classList.toggle('show', !!show);
+}
+
+// ============ CONFIRM DIALOG ============
+function confirmDlg(opts){
+  return new Promise(resolve => {
+    const root = document.getElementById('confirm-root');
+    const yesCls = opts.danger ? 'btn-danger' : 'btn-accent';
+    root.innerHTML =
+      '<div class="modal-overlay" style="justify-content:center;align-items:center">' +
+        '<div class="modal-panel center" style="width:440px">' +
+          '<div class="modal-head" style="background:' + (opts.danger ? 'var(--danger)' : 'var(--primary)') + '">' +
+            '<h3><i class="fa-solid ' + (opts.icon || 'fa-circle-question') + '"></i> ' + esc(opts.title || 'Confirm') + '</h3>' +
+          '</div>' +
+          '<div class="modal-body" style="font-size:13.5px">' + (opts.html || esc(opts.message || 'Are you sure?')) + '</div>' +
+          '<div class="modal-foot">' +
+            '<button class="btn btn-light" id="cfm-no"><i class="fa-solid fa-xmark"></i> ' + esc(opts.noText || 'Cancel') + '</button>' +
+            '<button class="btn ' + yesCls + '" id="cfm-yes"><i class="fa-solid fa-check"></i> ' + esc(opts.yesText || 'Yes') + '</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    root.querySelector('#cfm-yes').onclick = () => { root.innerHTML = ''; resolve(true); };
+    root.querySelector('#cfm-no').onclick = () => { root.innerHTML = ''; resolve(false); };
+  });
+}
+
+// ============ API LAYER ============
+async function apiGet(action, params){
+  if (!API_CONFIGURED) throw new Error('Backend API is not configured. Set API_URL in index.html.');
+  const q = new URLSearchParams(Object.assign({ action }, params || {}));
+  let resp;
+  try {
+    resp = await fetch(API_URL + '?' + q.toString(), { method:'GET', redirect:'follow' });
+  } catch (e) {
+    throw new Error('Unable to connect to the server. Please check your internet connection.');
+  }
+  if (!resp.ok) throw new Error('Server returned status ' + resp.status + '. Please try again.');
+  const json = await resp.json();
+  if (!json.success) throw new Error(json.details || json.error || 'An unexpected error occurred. Please try again.');
+  return json;
+}
+async function apiPost(payload){
+  if (!API_CONFIGURED) throw new Error('Backend API is not configured. Set API_URL in index.html.');
+  payload.user = currentUser ? currentUser.fullName : 'unknown';
+  let resp;
+  try {
+    // text/plain avoids a CORS preflight that Apps Script cannot answer
+    resp = await fetch(API_URL, { method:'POST', redirect:'follow', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify(payload) });
+  } catch (e) {
+    throw new Error('Unable to connect to the server. Please check your internet connection.');
+  }
+  if (!resp.ok) throw new Error('Server returned status ' + resp.status + '. Please try again.');
+  const json = await resp.json();
+  if (!json.success) throw new Error(json.details || json.error || 'An unexpected error occurred. Please try again.');
+  return json;
+}
+
+// ============ DATA SYNC ============
+async function syncAll(showSpin){
+  if (!API_CONFIGURED) { updateSyncText(); return false; }
+  if (showSpin) spinner(true, 'Syncing data from Google Sheets…');
+  try {
+    const res = await apiGet('getAll');
+    const d = res.data || {};
+    Object.keys(DB).forEach(k => { if (Array.isArray(d[k])) DB[k] = d[k]; });
+    dataVersion = d._version || null;
+    lastSyncTime = new Date();
+    updateSyncText();
+    rerenderCurrentPage();
+    return true;
+  } catch (e) {
+    toast(e.message, 'error');
+    return false;
+  } finally {
+    if (showSpin) spinner(false);
+  }
+}
+function updateSyncText(){
+  const el = document.getElementById('sync-text');
+  const ind = document.getElementById('sync-indicator');
+  if (!API_CONFIGURED) { el.textContent = 'Backend not configured'; ind.classList.add('stale'); return; }
+  if (!lastSyncTime) { el.textContent = 'Not synced yet'; ind.classList.add('stale'); return; }
+  const s = Math.floor((Date.now() - lastSyncTime.getTime()) / 1000);
+  el.textContent = 'Last synced: ' + (s < 5 ? 'just now' : s < 60 ? s + ' sec ago' : Math.floor(s/60) + ' min ago');
+  ind.classList.toggle('stale', s > 90);
+}
+async function pollForUpdates(){
+  if (!API_CONFIGURED || !currentUser) return;
+  try {
+    const res = await apiGet('getVersion');
+    const v = res.data && res.data.version;
+    if (v && dataVersion && v !== dataVersion) document.getElementById('update-banner').style.display = 'block';
+  } catch (e) { /* silent — polling must never disturb the user */ }
+}
+function hideUpdateBanner(){ document.getElementById('update-banner').style.display = 'none'; }
+
+// ============ SESSION MANAGEMENT ============
+function saveSession(user){ localStorage.setItem(SESSION_KEY, JSON.stringify({ username:user.username, fullName:user.fullName, role:user.role, loginTime:new Date().toISOString() })); }
+function loadSession(){
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    const age = (Date.now() - new Date(s.loginTime).getTime()) / 3600000;
+    if (age > SESSION_HOURS) { localStorage.removeItem(SESSION_KEY); return null; }
+    return s;
+  } catch (e) { return null; }
+}
+function sessionExpired(){
+  localStorage.removeItem(SESSION_KEY);
+  currentUser = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('page-login').style.display = 'flex';
+  toast('Your session has expired. Please log in again.', 'warn');
+}
+async function doLogin(){
+  const uname = document.getElementById('login-user').value;
+  const pass = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-error');
+  errEl.style.display = 'none';
+  if (!uname) { errEl.textContent = 'Please select a username.'; errEl.style.display = 'block'; return; }
+  if (!pass) { errEl.textContent = 'Please enter your password.'; errEl.style.display = 'block'; return; }
+  const user = USERS.find(u => u.username === uname && u.password === pass);
+  if (!user) { errEl.textContent = 'Invalid username or password. Please try again.'; errEl.style.display = 'block'; return; }
+  const btn = document.getElementById('btn-login');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Logging in…';
+  saveSession(user);
+  await enterApp({ username:user.username, fullName:user.fullName, role:user.role });
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Login';
+  document.getElementById('login-pass').value = '';
+}
+async function enterApp(sessionUser){
+  currentUser = sessionUser;
+  document.getElementById('page-login').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('tb-username').textContent = currentUser.fullName;
+  document.getElementById('tb-avatar').textContent = currentUser.fullName.split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase();
+  document.getElementById('sb-user-info').innerHTML = '<i class="fa-solid fa-circle-user"></i> ' + esc(currentUser.fullName) + ' &middot; ' + esc(currentUser.role);
+  if (!API_CONFIGURED) document.getElementById('config-banner').style.display = 'block';
+  await syncAll(true);
+  showPage('page-dashboard');
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(pollForUpdates, POLL_INTERVAL_MS);
+  if (syncTickTimer) clearInterval(syncTickTimer);
+  syncTickTimer = setInterval(updateSyncText, 5000);
+}
+function logout(){
+  confirmDlg({ title:'Logout', message:'Are you sure you want to log out?', yesText:'Yes, Logout', icon:'fa-right-from-bracket' }).then(yes => {
+    if (!yes) return;
+    localStorage.removeItem(SESSION_KEY);
+    currentUser = null;
+    if (pollTimer) clearInterval(pollTimer);
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('page-login').style.display = 'flex';
+  });
+}
+
+// ============ LIVE CLOCK ============
+setInterval(() => {
+  const el = document.getElementById('live-clock');
+  if (el) el.innerHTML = '<i class="fa-regular fa-clock"></i> ' + new Date().toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short',year:'numeric'}) + ' ' + new Date().toLocaleTimeString('en-GB');
+}, 1000);
+
+// ============ NAVIGATION / SPA ROUTER ============
+const PAGE_META = {
+  'page-dashboard':            { title:'Dashboard', crumb:['Dashboard'], render: renderDashboard },
+  'page-projects':             { title:'Projects Master', crumb:['Masters','Projects'], render: () => renderMaster('projects') },
+  'page-shops':                { title:'Shops Master', crumb:['Masters','Shops'], render: () => renderMaster('shops') },
+  'page-expense-heads':        { title:'Expense Heads Master', crumb:['Masters','Expense Heads'], render: () => renderMaster('expenseHeads') },
+  'page-materials':            { title:'Materials Master', crumb:['Masters','Materials'], render: () => renderMaster('materials') },
+  'page-units':                { title:'Units Master', crumb:['Masters','Units'], render: () => renderMaster('units') },
+  'page-suppliers':            { title:'Suppliers Master', crumb:['Masters','Suppliers'], render: () => renderMaster('suppliers') },
+  'page-customers':            { title:'Customers Master', crumb:['Masters','Customers'], render: () => renderMaster('customers') },
+  'page-budget':               { title:'Budget Entries', crumb:['Transactions','Budget Entries'], render: renderBudgetPage },
+  'page-contracts':            { title:'Contracts / LPO / Sales Invoice', crumb:['Transactions','Contracts'], render: renderContractsPage },
+  'page-expenses':             { title:'Actual Expense Entry', crumb:['Transactions','Actual Expenses'], render: renderExpensesPage },
+  'page-rpt-budget-vs-actual': { title:'Budget vs Actual Report', crumb:['Reports','Budget vs Actual'], render: () => renderReport('budgetVsActual') },
+  'page-rpt-profitability':    { title:'Project Profitability Report', crumb:['Reports','Project Profitability'], render: () => renderReport('profitability') },
+  'page-rpt-item-wise':        { title:'Item-wise Report', crumb:['Reports','Item-wise'], render: () => renderReport('itemWise') },
+  'page-rpt-shop-wise':        { title:'Shop-wise Report', crumb:['Reports','Shop-wise'], render: () => renderReport('shopWise') },
+  'page-rpt-project-wise':     { title:'Project-wise Summary Report', crumb:['Reports','Project-wise'], render: () => renderReport('projectWise') },
+  'page-rpt-pnl':              { title:'Profit & Loss Statement', crumb:['Reports','P&L Statement'], render: () => renderReport('pnl') },
+  'page-rpt-supplier-wise':    { title:'Supplier-wise Report', crumb:['Reports','Supplier-wise'], render: () => renderReport('supplierWise') }
+};
+
+function showPage(pageId){
+  if (!PAGE_META[pageId]) pageId = 'page-dashboard';
+  if (currentUser === null) { sessionExpired(); return; }
+  currentPage = pageId;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const pg = document.getElementById(pageId);
+  pg.classList.add('active');
+  document.getElementById('tb-title').textContent = PAGE_META[pageId].title;
+  document.getElementById('print-title').textContent = PAGE_META[pageId].title + ' — Generated ' + fmtDT(new Date());
+  document.getElementById('print-footer-line').textContent = 'Printed on: ' + fmtDT(new Date()) + ' by ' + (currentUser ? currentUser.fullName : '');
+  document.querySelectorAll('#sb-nav .nav-item').forEach(n => n.classList.toggle('active', n.dataset.page === pageId));
+  toggleSidebar(false);
+  PAGE_META[pageId].render();
+  window.scrollTo(0, 0);
+}
+function rerenderCurrentPage(){ if (currentUser && PAGE_META[currentPage]) PAGE_META[currentPage].render(); }
+function breadcrumbHTML(parts){
+  let html = '<div class="breadcrumb"><a onclick="showPage(\'page-dashboard\')"><i class="fa-solid fa-house"></i> Home</a>';
+  parts.forEach((p, i) => { html += '<i class="fa-solid fa-chevron-right"></i>' + (i === parts.length - 1 ? '<span>' + esc(p) + '</span>' : '<span>' + esc(p) + '</span>'); });
+  return html + '</div>';
+}
+function pageHeadHTML(icon, title, extraBtns){
+  return '<div class="page-head"><h1><i class="fa-solid ' + icon + '"></i> ' + esc(title) + '</h1>' +
+    '<div class="head-btns">' + (extraBtns || '') +
+    '<button class="btn btn-light btn-sm" onclick="showPage(\'page-dashboard\')"><i class="fa-solid fa-arrow-left"></i> Back</button>' +
+    '<button class="btn btn-light btn-sm" onclick="showPage(\'page-dashboard\')"><i class="fa-solid fa-house"></i> Home</button>' +
+    '</div></div>';
+}
+function toggleSidebar(force){
+  const sb = document.getElementById('sidebar');
+  const bd = document.getElementById('sidebar-backdrop');
+  const open = force !== undefined ? force : !sb.classList.contains('open');
+  sb.classList.toggle('open', open);
+  bd.classList.toggle('show', open);
+}
+function toggleGroup(id){ document.getElementById(id).classList.toggle('open'); }
+document.addEventListener('click', e => {
+  const nav = e.target.closest('.nav-item');
+  if (nav && nav.dataset.page) showPage(nav.dataset.page);
+});
+
+// ============ REUSABLE SEARCH-AS-YOU-GO DROPDOWN COMPONENT ============
+function createSearchDropdown(containerId, cfg){
+  // cfg: { placeholder, getOptions() -> [{value,label,sub}], onSelect(value, option), required, disabled, value }
+  const container = typeof containerId === 'string' ? document.getElementById(containerId) : containerId;
+  if (!container) return null;
+  const state = { value: cfg.value || '', open: false, hl: -1, disabled: !!cfg.disabled, filtered: [] };
+
+  container.classList.add('sdd');
+  container.innerHTML =
+    '<div class="sdd-input-wrap">' +
+      '<input type="text" class="sdd-input" placeholder="' + esc(cfg.placeholder || 'Search…') + '" autocomplete="off" ' + (state.disabled ? 'disabled' : '') + '>' +
+      '<button type="button" class="sdd-clear" title="Clear"><i class="fa-solid fa-xmark"></i></button>' +
+      '<i class="fa-solid fa-chevron-down sdd-arrow"></i>' +
+    '</div>' +
+    '<div class="sdd-list" role="listbox"></div>';
+
+  const input = container.querySelector('.sdd-input');
+  const clearBtn = container.querySelector('.sdd-clear');
+  const list = container.querySelector('.sdd-list');
+
+  function options(){ return (cfg.getOptions ? cfg.getOptions() : (cfg.options || [])); }
+  function labelFor(v){ const o = options().find(o => String(o.value) === String(v)); return o ? o.label : ''; }
+  function highlight(text, q){
+    if (!q) return esc(text);
+    const idx = text.toLowerCase().indexOf(q.toLowerCase());
+    if (idx === -1) return esc(text);
+    return esc(text.substring(0, idx)) + '<mark>' + esc(text.substring(idx, idx + q.length)) + '</mark>' + esc(text.substring(idx + q.length));
+  }
+  function renderList(q){
+    const opts = options();
+    state.filtered = q ? opts.filter(o => (o.label + ' ' + (o.sub || '')).toLowerCase().includes(q.toLowerCase())) : opts;
+    if (state.filtered.length === 0) { list.innerHTML = '<div class="sdd-empty"><i class="fa-solid fa-magnifying-glass"></i> No results found</div>'; return; }
+    list.innerHTML = state.filtered.map((o, i) =>
+      '<div class="sdd-item' + (i === state.hl ? ' hl' : '') + (String(o.value) === String(state.value) ? ' sel' : '') + '" data-i="' + i + '">' +
+        highlight(o.label, q) + (o.sub ? '<span class="sdd-sub">' + highlight(o.sub, q) + '</span>' : '') +
+      '</div>').join('');
+  }
+  function openList(){ if (state.disabled) return; state.open = true; state.hl = -1; container.classList.add('open'); renderList(input.value === labelFor(state.value) ? '' : input.value); }
+  function closeList(){ state.open = false; container.classList.remove('open'); input.value = labelFor(state.value); }
+  function select(opt){
+    state.value = opt ? opt.value : '';
+    input.value = opt ? opt.label : '';
+    container.classList.toggle('has-value', !!state.value);
+    state.open = false; container.classList.remove('open');
+    if (cfg.onSelect) cfg.onSelect(state.value, opt || null);
+  }
+  input.addEventListener('focus', openList);
+  input.addEventListener('input', () => { state.hl = -1; if (!state.open) { state.open = true; container.classList.add('open'); } renderList(input.value); });
+  input.addEventListener('keydown', e => {
+    if (!state.open && (e.key === 'ArrowDown' || e.key === 'Enter')) { openList(); return; }
+    if (e.key === 'ArrowDown') { e.preventDefault(); state.hl = Math.min(state.hl + 1, state.filtered.length - 1); renderList(input.value === labelFor(state.value) ? '' : input.value); scrollHl(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); state.hl = Math.max(state.hl - 1, 0); renderList(input.value === labelFor(state.value) ? '' : input.value); scrollHl(); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (state.hl >= 0 && state.filtered[state.hl]) select(state.filtered[state.hl]); else if (state.filtered.length === 1) select(state.filtered[0]); }
+    else if (e.key === 'Escape') { closeList(); input.blur(); }
+  });
+  function scrollHl(){ const el = list.querySelector('.sdd-item.hl'); if (el) el.scrollIntoView({ block:'nearest' }); }
+  list.addEventListener('mousedown', e => {
+    const item = e.target.closest('.sdd-item');
+    if (item) { e.preventDefault(); select(state.filtered[Number(item.dataset.i)]); }
+  });
+  clearBtn.addEventListener('click', e => { e.stopPropagation(); select(null); input.focus(); });
+  document.addEventListener('click', e => { if (!container.contains(e.target) && state.open) closeList(); });
+
+  const api = {
+    getValue: () => state.value,
+    setValue: v => { state.value = v || ''; input.value = labelFor(v); container.classList.toggle('has-value', !!v); },
+    clear: () => select(null),
+    refresh: () => { input.value = labelFor(state.value); if (state.open) renderList(input.value); },
+    setDisabled: d => { state.disabled = d; input.disabled = d; container.classList.toggle('disabled', d); },
+    focus: () => input.focus()
+  };
+  if (state.value) api.setValue(state.value);
+  container._sdd = api;
+  return api;
+}
+
+// ============ CSV EXPORT ============
+function exportCSV(pageName, headers, rows){
+  if (!rows || rows.length === 0) { toast('Nothing to export — no records found.', 'warn'); return; }
+  const csvEscape = v => {
+    let s = String(v === undefined || v === null ? '' : v);
+    if (/[",\n\r]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  };
+  const lines = [headers.map(csvEscape).join(',')].concat(rows.map(r => r.map(csvEscape).join(',')));
+  const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type:'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = pageName.replace(/[^\w\- ]/g, '').replace(/\s+/g, '_') + '_' + todayISO() + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(a.href);
+  toast('CSV exported: ' + a.download, 'success');
+}
+function printPage(){ window.print(); }
+
+// ============ STATUS BADGES / PROGRESS ============
+function statusBadge(status){
+  const s = String(status || '').toLowerCase();
+  let cls = 'badge-gray';
+  if (['active','approved','paid','completed','available'].includes(s)) cls = 'badge-green';
+  else if (['pending','draft','on hold','under construction','revised'].includes(s)) cls = 'badge-yellow';
+  else if (['cancelled','inactive'].includes(s)) cls = 'badge-red';
+  else if (['occupied'].includes(s)) cls = 'badge-blue';
+  return '<span class="badge ' + cls + '">' + esc(status || '—') + '</span>';
+}
+function utilBarHTML(pct){
+  const p = Number(pct) || 0;
+  const cls = p > 100 ? 'over' : p > 75 ? 'warn' : '';
+  return '<div class="util-cell"><div class="progress" style="flex:1"><div class="progress-bar ' + cls + '" style="width:' + Math.min(p, 100) + '%"></div></div><span>' + fmtPct(p) + '</span></div>';
+}
+function plCell(v){ return '<td class="num ' + (Number(v) >= 0 ? 'pl-pos' : 'pl-neg') + '">' + fmtMK(v) + '</td>'; }
+
+// ============ CHART HELPERS ============
+const CHART_COLORS = ['#e94560','#3498db','#27ae60','#f39c12','#9b59b6','#1abc9c','#e67e22','#34495e','#e74c3c','#2ecc71','#f1c40f','#95a5a6'];
+function makeChart(key, canvasId, config){
+  const el = document.getElementById(canvasId);
+  if (!el) return;
+  if (charts[key]) { charts[key].destroy(); delete charts[key]; }
+  if (typeof Chart === 'undefined') { el.parentElement.innerHTML = '<div class="empty-state"><i class="fa-solid fa-chart-simple"></i>Charts unavailable (Chart.js CDN not loaded)</div>'; return; }
+  config.options = config.options || {};
+  config.options.maintainAspectRatio = false;
+  config.options.responsive = true;
+  charts[key] = new Chart(el.getContext('2d'), config);
+}
+function mkTick(v){ return 'MK ' + Number(v).toLocaleString('en-US', { notation: Math.abs(v) >= 1000000 ? 'compact' : 'standard' }); }
+
+// ============ DASHBOARD ============
+function renderDashboard(){
+  const pg = document.getElementById('page-dashboard');
+  const projects = DB.Projects, budgets = DB.BudgetEntries, contracts = DB.Contracts.filter(c => c.Status !== 'Cancelled'), expenses = DB.ActualExpenses;
+  const totalBudget = sumField(budgets, 'TotalAmount');
+  const totalContracts = sumField(contracts, 'ContractValue');
+  const totalExpenses = sumField(expenses, 'TotalAmount');
+  const activeCount = projects.filter(p => p.Status === 'Active').length;
+  const utilization = totalBudget > 0 ? totalExpenses / totalBudget * 100 : 0;
+  const pl = totalContracts - totalExpenses;
+
+  const kpi = (icon, color, label, value, sub) =>
+    '<div class="kpi-card" style="border-left-color:' + color + '"><div class="kpi-icon" style="background:' + color + '1d;color:' + color + '"><i class="fa-solid ' + icon + '"></i></div>' +
+    '<div><div class="kpi-lbl">' + label + '</div><div class="kpi-val">' + value + '</div>' + (sub ? '<div class="kpi-sub">' + sub + '</div>' : '') + '</div></div>';
+
+  pg.innerHTML =
+    breadcrumbHTML(['Dashboard']) +
+    '<div class="page-head"><h1><i class="fa-solid fa-chart-pie"></i> Dashboard</h1>' +
+    '<div class="head-btns"><span style="font-size:12px;color:var(--text-secondary)">Welcome back, <b>' + esc(currentUser.fullName) + '</b> 👋</span></div></div>' +
+    '<div class="kpi-grid">' +
+      kpi('fa-building', '#3498db', 'Total Projects', activeCount + ' / ' + projects.length, 'Active / Total 🏗️') +
+      kpi('fa-coins', '#f39c12', 'Total Budget Value', fmtMK(totalBudget), budgets.length + ' budget lines 💰') +
+      kpi('fa-file-signature', '#9b59b6', 'Total Contract Value', fmtMK(totalContracts), contracts.length + ' contracts 📑') +
+      kpi('fa-money-bill-wave', '#e94560', 'Total Actual Expenses', fmtMK(totalExpenses), expenses.length + ' expense entries 💸') +
+      kpi('fa-percent', utilization > 100 ? '#e74c3c' : '#27ae60', 'Budget Utilization', fmtPct(utilization), 'Expenses / Budget 📊') +
+      kpi(pl >= 0 ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down', pl >= 0 ? '#27ae60' : '#e74c3c', 'Profit / Loss Overview', fmtMK(pl), 'Contracts − Expenses 📈') +
+    '</div>' +
+    '<div class="quick-grid">' +
+      '<div class="quick-card" onclick="showPage(\'page-budget\')"><i class="fa-solid fa-circle-plus"></i><span>New Budget Entry</span></div>' +
+      '<div class="quick-card" onclick="showPage(\'page-expenses\')"><i class="fa-solid fa-money-bill-wave"></i><span>New Expense Entry</span></div>' +
+      '<div class="quick-card" onclick="showPage(\'page-contracts\')"><i class="fa-solid fa-file-signature"></i><span>New Contract</span></div>' +
+      '<div class="quick-card" onclick="showPage(\'page-rpt-project-wise\')"><i class="fa-solid fa-chart-line"></i><span>View Reports</span></div>' +
+    '</div>' +
+    '<div class="charts-grid">' +
+      '<div class="chart-card"><h3><i class="fa-solid fa-chart-column"></i> Budget vs Actual by Project</h3><div class="chart-wrap"><canvas id="ch-budget-actual"></canvas></div></div>' +
+      '<div class="chart-card"><h3><i class="fa-solid fa-chart-pie"></i> Expense Distribution by Expense Head</h3><div class="chart-wrap"><canvas id="ch-exp-dist"></canvas></div></div>' +
+      '<div class="chart-card"><h3><i class="fa-solid fa-chart-line"></i> Monthly Expense Trend (Last 12 Months)</h3><div class="chart-wrap"><canvas id="ch-trend"></canvas></div></div>' +
+      '<div class="chart-card"><h3><i class="fa-solid fa-ranking-star"></i> Top 5 Projects by Contract Value</h3><div class="chart-wrap"><canvas id="ch-top5"></canvas></div></div>' +
+    '</div>' +
+    '<div class="charts-grid" style="grid-template-columns:1fr 1.4fr">' +
+      '<div class="chart-card"><h3><i class="fa-solid fa-clock-rotate-left"></i> Recent Activity</h3><div id="dash-activity"></div></div>' +
+      '<div class="chart-card"><h3><i class="fa-solid fa-table-list"></i> Project Status Summary</h3><div class="table-wrap" style="box-shadow:none" id="dash-proj-summary"></div></div>' +
+    '</div>';
+
+  // Chart 1: Budget vs Actual per project
+  const projLabels = projects.map(p => p.ProjectName);
+  makeChart('dashBA', 'ch-budget-actual', { type:'bar',
+    data:{ labels: projLabels, datasets:[
+      { label:'Budget', data: projects.map(p => sumField(budgets.filter(b => b.ProjectID === p.ProjectID), 'TotalAmount')), backgroundColor:'#3498db' },
+      { label:'Actual', data: projects.map(p => sumField(expenses.filter(e => e.ProjectID === p.ProjectID), 'TotalAmount')), backgroundColor:'#e94560' } ] },
+    options:{ scales:{ y:{ ticks:{ callback: mkTick } } } } });
+
+  // Chart 2: Doughnut by expense head
+  const byHead = {};
+  expenses.forEach(e => { const n = expHeadName(e.ExpHeadID); byHead[n] = (byHead[n] || 0) + Number(e.TotalAmount || 0); });
+  makeChart('dashDist', 'ch-exp-dist', { type:'doughnut',
+    data:{ labels: Object.keys(byHead), datasets:[{ data: Object.values(byHead), backgroundColor: CHART_COLORS }] },
+    options:{ plugins:{ legend:{ position:'right', labels:{ boxWidth:12, font:{ size:10.5 } } } } } });
+
+  // Chart 3: Monthly trend last 12 months
+  const months = [], now = new Date();
+  for (let i = 11; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); months.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')); }
+  const trendMap = {};
+  expenses.forEach(e => { const k = dateOnly(e.ExpenseDate).substring(0, 7); trendMap[k] = (trendMap[k] || 0) + Number(e.TotalAmount || 0); });
+  makeChart('dashTrend', 'ch-trend', { type:'line',
+    data:{ labels: months.map(m => new Date(m + '-01').toLocaleDateString('en-GB', { month:'short', year:'2-digit' })),
+           datasets:[{ label:'Expenses', data: months.map(m => trendMap[m] || 0), borderColor:'#e94560', backgroundColor:'rgba(233,69,96,.12)', fill:true, tension:.35 }] },
+    options:{ scales:{ y:{ ticks:{ callback: mkTick } } } } });
+
+  // Chart 4: Top 5 projects by contract value
+  const top5 = projects.map(p => ({ name: p.ProjectName, v: sumField(contracts.filter(c => c.ProjectID === p.ProjectID), 'ContractValue') }))
+    .sort((a, b) => b.v - a.v).slice(0, 5);
+  makeChart('dashTop5', 'ch-top5', { type:'bar',
+    data:{ labels: top5.map(t => t.name), datasets:[{ label:'Contract Value', data: top5.map(t => t.v), backgroundColor:'#27ae60' }] },
+    options:{ indexAxis:'y', scales:{ x:{ ticks:{ callback: mkTick } } } } });
+
+  // Recent activity
+  const actEl = document.getElementById('dash-activity');
+  const acts = DB.AuditLog.slice().sort((a, b) => new Date(b.Timestamp) - new Date(a.Timestamp)).slice(0, 10);
+  actEl.innerHTML = acts.length === 0
+    ? '<div class="empty-state"><i class="fa-solid fa-clock-rotate-left"></i>No activity recorded yet</div>'
+    : acts.map(a => {
+        const verb = a.Action === 'CREATE' ? 'created' : a.Action === 'UPDATE' ? 'updated' : 'deleted';
+        return '<div class="activity-item"><div class="act-ic"><i class="fa-solid ' + (a.Action === 'CREATE' ? 'fa-plus' : a.Action === 'UPDATE' ? 'fa-pen' : 'fa-trash') + '"></i></div>' +
+          '<div>👤 <b>' + esc(a.UserName) + '</b> ' + verb + ' ' + esc(a.Module) + ' <b>' + esc(a.RecordID) + '</b></div>' +
+          '<span class="act-time">' + relTime(a.Timestamp) + '</span></div>';
+      }).join('');
+
+  // Project summary table
+  const sumEl = document.getElementById('dash-proj-summary');
+  if (projects.length === 0) {
+    sumEl.innerHTML = '<div class="empty-state"><i class="fa-solid fa-building"></i>No projects yet. Create your first project from Masters &gt; Projects.</div>';
+  } else {
+    sumEl.innerHTML = '<table class="data-table"><thead><tr><th>Project</th><th class="num">Budget</th><th class="num">Contracts</th><th class="num">Expenses</th><th>Utilization</th><th class="num">Profit/Loss</th></tr></thead><tbody>' +
+      projects.map(p => {
+        const b = sumField(budgets.filter(x => x.ProjectID === p.ProjectID), 'TotalAmount');
+        const c = sumField(contracts.filter(x => x.ProjectID === p.ProjectID), 'ContractValue');
+        const e = sumField(expenses.filter(x => x.ProjectID === p.ProjectID), 'TotalAmount');
+        const u = b > 0 ? e / b * 100 : 0;
+        return '<tr><td><b>' + esc(p.ProjectName) + '</b><br><small style="color:var(--text-secondary)">' + esc(p.ProjectID) + ' · ' + esc(p.Status) + '</small></td>' +
+          '<td class="num">' + fmtMK(b) + '</td><td class="num">' + fmtMK(c) + '</td><td class="num">' + fmtMK(e) + '</td>' +
+          '<td>' + utilBarHTML(u) + '</td>' + plCell(c - e) + '</tr>';
+      }).join('') + '</tbody></table>';
+  }
+}
+
+// ============ MASTER PAGES (GENERIC, CONFIG-DRIVEN) ============
+const MASTERS = {
+  projects: {
+    entity:'Projects', title:'Projects', icon:'fa-building', id:'ProjectID', pageId:'page-projects', nameField:'ProjectName',
+    statusOptions:['Active','Completed','On Hold','Cancelled'],
+    columns:[
+      { k:'ProjectID', l:'ID' }, { k:'ProjectName', l:'Project Name' }, { k:'Location', l:'Location' },
+      { k:'ClientName', l:'Client', fmt: v => customerName(v) },
+      { k:'StartDate', l:'Start', fmt: fmtDate }, { k:'ExpectedEndDate', l:'Expected End', fmt: fmtDate },
+      { k:'Status', l:'Status', badge:true } ],
+    fields:[
+      { k:'ProjectName', l:'Project Name', type:'text', required:true, unique:true },
+      { k:'Location', l:'Location', type:'text', required:true },
+      { k:'ClientName', l:'Client Name', type:'sdd', required:true, options: () => DB.Customers.map(c => ({ value:c.CustomerID, label:c.CustomerName, sub:c.CustomerID })) },
+      { k:'StartDate', l:'Start Date', type:'date', required:true },
+      { k:'ExpectedEndDate', l:'Expected End Date', type:'date', validate:(v, d) => (v && d.StartDate && new Date(v) <= new Date(d.StartDate)) ? 'Expected End Date must be after Start Date' : null },
+      { k:'Status', l:'Status', type:'select', options:['Active','Completed','On Hold','Cancelled'], def:'Active' },
+      { k:'Description', l:'Description', type:'textarea', full:true } ]
+  },
+  shops: {
+    entity:'Shops', title:'Shops', icon:'fa-store', id:'ShopID', pageId:'page-shops', nameField:'ShopName',
+    statusOptions:['Available','Occupied','Under Construction'],
+    columns:[
+      { k:'ShopID', l:'ID' }, { k:'ShopName', l:'Shop Name' },
+      { k:'ProjectID', l:'Project', fmt: v => projectName(v) },
+      { k:'FloorLevel', l:'Floor' }, { k:'Area_SqFt', l:'Area (SqFt)', num:true, fmt: v => v ? fmtNum(v) : '—' },
+      { k:'Status', l:'Status', badge:true } ],
+    fields:[
+      { k:'ShopName', l:'Shop Name', type:'text', required:true, unique:true },
+      { k:'ProjectID', l:'Project', type:'sdd', required:true, options: () => DB.Projects.map(p => ({ value:p.ProjectID, label:p.ProjectName, sub:p.ProjectID })) },
+      { k:'FloorLevel', l:'Floor Level', type:'text' },
+      { k:'Area_SqFt', l:'Area (Sq Ft)', type:'number' },
+      { k:'Status', l:'Status', type:'select', options:['Available','Occupied','Under Construction'], def:'Available' } ]
+  },
+  expenseHeads: {
+    entity:'ExpenseHeads', title:'Expense Heads', icon:'fa-tags', id:'ExpHeadID', pageId:'page-expense-heads', nameField:'ExpHeadName',
+    statusOptions:[],
+    columns:[
+      { k:'ExpHeadID', l:'ID' }, { k:'ExpHeadName', l:'Expense Head' }, { k:'Category', l:'Category', badge:true }, { k:'Description', l:'Description' } ],
+    fields:[
+      { k:'ExpHeadName', l:'Expense Head Name', type:'text', required:true, unique:true },
+      { k:'Category', l:'Category', type:'select', required:true, options:['Material','Labour','Equipment','Overhead','Subcontract','Other'] },
+      { k:'Description', l:'Description', type:'textarea', full:true } ]
+  },
+  materials: {
+    entity:'Materials', title:'Materials', icon:'fa-cubes', id:'MaterialID', pageId:'page-materials', nameField:'MaterialName',
+    statusOptions:[],
+    columns:[
+      { k:'MaterialID', l:'ID' }, { k:'MaterialName', l:'Material Name' },
+      { k:'UnitID', l:'Unit', fmt: v => unitName(v) }, { k:'Category', l:'Category' }, { k:'Description', l:'Description' } ],
+    fields:[
+      { k:'MaterialName', l:'Material Name', type:'text', required:true, unique:true },
+      { k:'UnitID', l:'Unit of Measurement', type:'sdd', required:true, options: () => DB.Units.map(u => ({ value:u.UnitID, label:u.UnitName + ' (' + u.Abbreviation + ')', sub:u.UnitID })) },
+      { k:'Category', l:'Category', type:'text' },
+      { k:'Description', l:'Description', type:'textarea', full:true } ]
+  },
+  units: {
+    entity:'Units', title:'Units', icon:'fa-ruler', id:'UnitID', pageId:'page-units', nameField:'UnitName',
+    statusOptions:[],
+    columns:[ { k:'UnitID', l:'ID' }, { k:'UnitName', l:'Unit Name' }, { k:'Abbreviation', l:'Abbreviation' } ],
+    fields:[
+      { k:'UnitName', l:'Unit Name', type:'text', required:true, unique:true, hint:'e.g., Kg, Bag, Piece, Meter, Litre, Trip, Lot' },
+      { k:'Abbreviation', l:'Abbreviation', type:'text', required:true } ]
+  },
+  suppliers: {
+    entity:'Suppliers', title:'Suppliers', icon:'fa-truck-field', id:'SupplierID', pageId:'page-suppliers', nameField:'SupplierName',
+    statusOptions:['Active','Inactive'],
+    columns:[
+      { k:'SupplierID', l:'ID' }, { k:'SupplierName', l:'Supplier Name' }, { k:'ContactPerson', l:'Contact' },
+      { k:'Phone', l:'Phone' }, { k:'Email', l:'Email' }, { k:'Status', l:'Status', badge:true } ],
+    fields:[
+      { k:'SupplierName', l:'Supplier Name', type:'text', required:true, unique:true },
+      { k:'ContactPerson', l:'Contact Person', type:'text' },
+      { k:'Phone', l:'Phone', type:'text' },
+      { k:'Email', l:'Email', type:'email', validate: v => (v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) ? 'Invalid email format' : null },
+      { k:'Address', l:'Address', type:'textarea', full:true },
+      { k:'TaxID', l:'Tax ID', type:'text' },
+      { k:'Status', l:'Status', type:'select', options:['Active','Inactive'], def:'Active' } ]
+  },
+  customers: {
+    entity:'Customers', title:'Customers', icon:'fa-user-tie', id:'CustomerID', pageId:'page-customers', nameField:'CustomerName',
+    statusOptions:['Active','Inactive'],
+    columns:[
+      { k:'CustomerID', l:'ID' }, { k:'CustomerName', l:'Customer Name' }, { k:'ContactPerson', l:'Contact' },
+      { k:'Phone', l:'Phone' }, { k:'Email', l:'Email' }, { k:'Status', l:'Status', badge:true } ],
+    fields:[
+      { k:'CustomerName', l:'Customer Name', type:'text', required:true, unique:true },
+      { k:'ContactPerson', l:'Contact Person', type:'text' },
+      { k:'Phone', l:'Phone', type:'text' },
+      { k:'Email', l:'Email', type:'email', validate: v => (v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) ? 'Invalid email format' : null },
+      { k:'Address', l:'Address', type:'textarea', full:true },
+      { k:'TaxID', l:'Tax ID', type:'text' },
+      { k:'Status', l:'Status', type:'select', options:['Active','Inactive'], def:'Active' } ]
+  }
+};
+
+// Per-page list UI state (search / sort / pagination / status filter)
+const listState = {};
+function getListState(key){
+  if (!listState[key]) listState[key] = { search:'', sortKey:'', sortDir:1, page:1, pageSize:10, status:'' };
+  return listState[key];
+}
+
+function renderMaster(key){
+  const m = MASTERS[key];
+  const st = getListState(key);
+  const pg = document.getElementById(m.pageId);
+  const crumb = PAGE_META[m.pageId].crumb;
+
+  pg.innerHTML =
+    breadcrumbHTML(crumb) +
+    pageHeadHTML(m.icon, m.title + ' Master') +
+    '<div class="action-bar">' +
+      '<button class="btn btn-accent" onclick="openMasterForm(\'' + key + '\')"><i class="fa-solid fa-plus"></i> Add New</button>' +
+      '<button class="btn btn-light" onclick="syncAll(true)"><i class="fa-solid fa-rotate"></i> Refresh</button>' +
+      '<button class="btn btn-light" onclick="exportMaster(\'' + key + '\')"><i class="fa-solid fa-download"></i> Export</button>' +
+      '<button class="btn btn-light" onclick="printPage()"><i class="fa-solid fa-print"></i> Print</button>' +
+      '<div class="spacer"></div>' +
+      '<div class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input id="ms-search-' + key + '" placeholder="Search ' + m.title.toLowerCase() + '…" value="' + esc(st.search) + '"></div>' +
+    '</div>' +
+    (m.statusOptions.length ?
+      '<div class="filter-bar"><label><i class="fa-solid fa-filter"></i> Status:</label><select id="ms-status-' + key + '">' +
+        '<option value="">All</option>' + m.statusOptions.map(s => '<option ' + (st.status === s ? 'selected' : '') + '>' + s + '</option>').join('') +
+      '</select></div>' : '') +
+    '<div id="ms-table-' + key + '"></div>';
+
+  document.getElementById('ms-search-' + key).addEventListener('input', e => { st.search = e.target.value; st.page = 1; renderMasterTable(key); });
+  const stEl = document.getElementById('ms-status-' + key);
+  if (stEl) stEl.addEventListener('change', e => { st.status = e.target.value; st.page = 1; renderMasterTable(key); });
+  renderMasterTable(key);
+}
+
+function masterFilteredRows(key){
+  const m = MASTERS[key];
+  const st = getListState(key);
+  let rows = DB[m.entity].slice();
+  if (st.status) rows = rows.filter(r => String(r.Status) === st.status);
+  if (st.search) {
+    const q = st.search.toLowerCase();
+    rows = rows.filter(r => m.columns.some(c => {
+      const raw = r[c.k];
+      const disp = c.fmt ? c.fmt(raw) : raw;
+      return String(raw || '').toLowerCase().includes(q) || String(disp || '').toLowerCase().includes(q);
+    }));
+  }
+  if (st.sortKey) {
+    rows.sort((a, b) => {
+      let av = a[st.sortKey], bv = b[st.sortKey];
+      const an = parseFloat(av), bn = parseFloat(bv);
+      if (!isNaN(an) && !isNaN(bn) && String(an) === String(av) && String(bn) === String(bv)) return (an - bn) * st.sortDir;
+      return String(av || '').localeCompare(String(bv || '')) * st.sortDir;
+    });
+  }
+  return rows;
+}
+
+function renderMasterTable(key){
+  const m = MASTERS[key];
+  const st = getListState(key);
+  const wrap = document.getElementById('ms-table-' + key);
+  const rows = masterFilteredRows(key);
+  const total = rows.length;
+  const pages = Math.max(1, Math.ceil(total / st.pageSize));
+  if (st.page > pages) st.page = pages;
+  const slice = rows.slice((st.page - 1) * st.pageSize, st.page * st.pageSize);
+
+  if (total === 0) {
+    wrap.innerHTML = '<div class="table-wrap"><div class="empty-state"><i class="fa-solid ' + m.icon + '"></i>No records found.' +
+      (st.search || st.status ? ' Try clearing your search/filter.' : ' Click "+ Add New" to create your first record!') + '</div></div>';
+    return;
+  }
+  const sortIc = k => st.sortKey !== k ? '<i class="fa-solid fa-sort sort-ic"></i>' : (st.sortDir === 1 ? '<i class="fa-solid fa-sort-up sort-ic"></i>' : '<i class="fa-solid fa-sort-down sort-ic"></i>');
+  wrap.innerHTML =
+    '<div class="table-wrap"><table class="data-table"><thead><tr>' +
+    m.columns.map(c => '<th class="sortable' + (c.num ? ' num' : '') + '" onclick="masterSort(\'' + key + '\',\'' + c.k + '\')">' + esc(c.l || c.k) + sortIc(c.k) + '</th>').join('') +
+    '<th class="col-actions" style="width:110px">Actions</th></tr></thead><tbody>' +
+    slice.map(r =>
+      '<tr>' + m.columns.map(c => {
+        const v = c.fmt ? c.fmt(r[c.k]) : (r[c.k] === '' || r[c.k] === undefined || r[c.k] === null ? '—' : r[c.k]);
+        return '<td class="' + (c.num ? 'num' : '') + '">' + (c.badge ? statusBadge(r[c.k]) : esc(v)) + '</td>';
+      }).join('') +
+      '<td class="col-actions" style="white-space:nowrap">' +
+        '<button class="btn-icon view" title="Preview" onclick="previewMaster(\'' + key + '\',\'' + r[m.id] + '\')"><i class="fa-solid fa-eye"></i></button>' +
+        '<button class="btn-icon edit" title="Edit" onclick="openMasterForm(\'' + key + '\',\'' + r[m.id] + '\')"><i class="fa-solid fa-pen"></i></button>' +
+        '<button class="btn-icon del" title="Delete" onclick="deleteMaster(\'' + key + '\',\'' + r[m.id] + '\')"><i class="fa-solid fa-trash"></i></button>' +
+      '</td></tr>').join('') +
+    '</tbody></table>' +
+    '<div class="pagination"><span>Showing ' + ((st.page - 1) * st.pageSize + 1) + '–' + Math.min(st.page * st.pageSize, total) + ' of ' + total + ' record(s)</span>' +
+    '<div class="pg-btns">' +
+      '<button class="btn btn-sm btn-light" ' + (st.page <= 1 ? 'disabled' : '') + ' onclick="masterPage(\'' + key + '\',-1)"><i class="fa-solid fa-chevron-left"></i> Prev</button>' +
+      '<button class="btn btn-sm btn-light" ' + (st.page >= pages ? 'disabled' : '') + ' onclick="masterPage(\'' + key + '\',1)">Next <i class="fa-solid fa-chevron-right"></i></button>' +
+    '</div></div></div>';
+}
+function masterSort(key, col){
+  const st = getListState(key);
+  if (st.sortKey === col) st.sortDir *= -1; else { st.sortKey = col; st.sortDir = 1; }
+  renderMasterTable(key);
+}
+function masterPage(key, dir){ getListState(key).page += dir; renderMasterTable(key); }
+function exportMaster(key){
+  const m = MASTERS[key];
+  const rows = masterFilteredRows(key);
+  exportCSV(m.title, m.columns.map(c => c.l || c.k).concat(['Created By','Created Date']),
+    rows.map(r => m.columns.map(c => c.fmt ? c.fmt(r[c.k]) : r[c.k]).concat([r.CreatedBy || '', fmtDT(r.CreatedDate)])));
+}
+function previewMaster(key, id){
+  const m = MASTERS[key];
+  const r = findRec(m.entity, m.id, id);
+  if (!r) return;
+  const rows = Object.keys(r).filter(k => r[k] !== '' && r[k] !== undefined)
+    .map(k => '<div class="pnl-row"><span style="color:var(--text-secondary)">' + esc(k) + '</span><b style="text-align:right;max-width:60%">' +
+      esc(k.includes('Date') ? fmtDT(r[k]) : r[k]) + '</b></div>').join('');
+  openModal({ title:'Preview — ' + id, icon:'fa-eye', center:true,
+    body:'<div>' + rows + '</div>',
+    foot:'<button class="btn btn-light" onclick="closeModal()"><i class="fa-solid fa-xmark"></i> Close</button>' });
+}
+
+// ============ GENERIC MODAL ============
+function openModal(opts){
+  const root = document.getElementById('modal-root');
+  root.innerHTML =
+    '<div class="modal-overlay" id="modal-ov"' + (opts.center ? ' style="justify-content:center;align-items:center"' : '') + '>' +
+      '<div class="modal-panel' + (opts.center ? ' center' : '') + '">' +
+        '<div class="modal-head"><h3><i class="fa-solid ' + (opts.icon || 'fa-pen-to-square') + '"></i> ' + esc(opts.title) + '</h3>' +
+        '<button class="btn-icon" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>' +
+        '<div class="modal-body">' + opts.body + '</div>' +
+        '<div class="modal-foot">' + (opts.foot || '') + '</div>' +
+      '</div>' +
+    '</div>';
+}
+function closeModal(){ document.getElementById('modal-root').innerHTML = ''; }
+
+// ============ MASTER ADD / EDIT FORM ============
+let masterFormCtx = null;
+function openMasterForm(key, id){
+  const m = MASTERS[key];
+  const rec = id ? findRec(m.entity, m.id, id) : null;
+  masterFormCtx = { key, id: id || null, sdds: {} };
+
+  const fieldsHtml = m.fields.map(f => {
+    const val = rec ? (f.k.includes('Date') && f.type === 'date' ? dateOnly(rec[f.k]) : rec[f.k]) : (f.def !== undefined ? f.def : '');
+    const label = '<label>' + esc(f.l) + (f.required ? ' <span class="req">*</span>' : '') + '</label>';
+    let control = '';
+    if (f.type === 'select') {
+      control = '<select id="mf-' + f.k + '">' + (f.required ? '' : '<option value="">—</option>') +
+        f.options.map(o => '<option ' + (String(val) === o ? 'selected' : '') + '>' + o + '</option>').join('') + '</select>';
+    } else if (f.type === 'sdd') {
+      control = '<div id="mf-sdd-' + f.k + '"></div>';
+    } else if (f.type === 'textarea') {
+      control = '<textarea id="mf-' + f.k + '" rows="3">' + esc(val || '') + '</textarea>';
+    } else {
+      control = '<input type="' + (f.type === 'email' ? 'email' : f.type) + '" id="mf-' + f.k + '" value="' + esc(val === undefined || val === null ? '' : val) + '"' + (f.type === 'number' ? ' min="0" step="any"' : '') + '>';
+    }
+    return '<div class="form-field' + (f.full ? ' full' : '') + '" id="mf-field-' + f.k + '">' + label + control +
+      (f.hint ? '<span class="form-hint">' + esc(f.hint) + '</span>' : '') + '<span class="field-error" id="mf-err-' + f.k + '"></span></div>';
+  }).join('');
+
+  openModal({
+    title: (id ? 'Edit ' : 'Add New ') + m.title.replace(/s$/, '') + (id ? ' — ' + id : ''),
+    icon: id ? 'fa-pen' : 'fa-plus',
+    body: (id ? '' : '<div class="form-hint" style="margin-bottom:12px"><i class="fa-solid fa-circle-info"></i> ID will be auto-generated (' + m.entity + ' sequence).</div>') +
+          '<div class="form-grid">' + fieldsHtml + '</div>' +
+          (rec ? '<div class="form-hint" style="margin-top:14px">Created by ' + esc(rec.CreatedBy || '—') + ' on ' + fmtDT(rec.CreatedDate) +
+                 (rec.ModifiedBy ? ' · Last modified by ' + esc(rec.ModifiedBy) + ' on ' + fmtDT(rec.ModifiedDate) : '') + '</div>' : ''),
+    foot: '<button class="btn btn-light" onclick="closeModal()"><i class="fa-solid fa-xmark"></i> Cancel</button>' +
+          '<button class="btn btn-accent" id="mf-save" onclick="saveMasterForm()"><i class="fa-solid fa-floppy-disk"></i> Save</button>'
+  });
+
+  m.fields.filter(f => f.type === 'sdd').forEach(f => {
+    masterFormCtx.sdds[f.k] = createSearchDropdown('mf-sdd-' + f.k, {
+      placeholder:'Search ' + f.l.toLowerCase() + '…',
+      getOptions: f.options,
+      value: rec ? rec[f.k] : ''
+    });
+  });
+}
+
+function setFieldError(prefix, k, msg){
+  const wrap = document.getElementById(prefix + '-field-' + k);
+  const err = document.getElementById(prefix + '-err-' + k);
+  if (!wrap) return;
+  wrap.classList.toggle('has-error', !!msg);
+  if (err) err.textContent = msg || '';
+}
+
+async function saveMasterForm(){
+  const { key, id, sdds } = masterFormCtx;
+  const m = MASTERS[key];
+  const data = {};
+  let hasErr = false;
+
+  m.fields.forEach(f => {
+    let v;
+    if (f.type === 'sdd') v = sdds[f.k].getValue();
+    else v = (document.getElementById('mf-' + f.k) || {}).value || '';
+    v = typeof v === 'string' ? v.trim() : v;
+    data[f.k] = v;
+    setFieldError('mf', f.k, '');
+    if (f.required && !v) { setFieldError('mf', f.k, f.l + ' is required'); hasErr = true; }
+  });
+  m.fields.forEach(f => {
+    if (hasErr) return;
+    if (f.validate) { const msg = f.validate(data[f.k], data); if (msg) { setFieldError('mf', f.k, msg); hasErr = true; } }
+    if (f.unique && data[f.k]) {
+      const dupe = DB[m.entity].find(r => String(r[f.k]).trim().toLowerCase() === String(data[f.k]).toLowerCase() && (!id || String(r[m.id]) !== String(id)));
+      if (dupe) { setFieldError('mf', f.k, 'A ' + m.title.replace(/s$/, '').toLowerCase() + " with " + f.l.toLowerCase() + " '" + data[f.k] + "' already exists (" + dupe[m.id] + ')'); hasErr = true; }
+    }
+  });
+  if (hasErr) { toast('Please fix the highlighted fields.', 'error'); return; }
+
+  const btn = document.getElementById('mf-save');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving…';
+  try {
+    if (id) data[m.id] = id;
+    const res = await apiPost({ action: id ? 'update' : 'create', entity: m.entity, data });
+    toast(res.message || 'Saved successfully', 'success');
+    closeModal();
+    await syncAll(false);
+    renderMasterTable(key);
+  } catch (e) {
+    toast(e.message, 'error');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save';
+  }
+}
+
+async function deleteMaster(key, id){
+  const m = MASTERS[key];
+  const rec = findRec(m.entity, m.id, id);
+  const yes = await confirmDlg({
+    title:'Delete ' + m.title.replace(/s$/, ''), danger:true, icon:'fa-trash', yesText:'Yes, Delete',
+    html:'Are you sure you want to permanently delete <b>' + esc(id) + (rec && rec[m.nameField] ? ' — ' + esc(rec[m.nameField]) : '') + '</b>?<br><small style="color:var(--text-secondary)">This action cannot be undone. Records referenced by other data cannot be deleted.</small>'
+  });
+  if (!yes) return;
+  spinner(true, 'Deleting…');
+  try {
+    const res = await apiPost({ action:'delete', entity: m.entity, id });
+    toast(res.message || 'Deleted successfully', 'success');
+    await syncAll(false);
+    renderMasterTable(key);
+  } catch (e) {
+    toast(e.message, 'error');
+  } finally { spinner(false); }
+}
+
+// ============ BUDGET ENTRY PAGE ============
+const budgetPageState = { projectId:'', search:'' };
+
+function renderBudgetPage(){
+  const pg = document.getElementById('page-budget');
+  pg.innerHTML =
+    breadcrumbHTML(['Transactions','Budget Entries']) +
+    pageHeadHTML('fa-file-invoice-dollar', 'Budget Entries') +
+    '<div class="card">' +
+      '<div class="form-grid" style="grid-template-columns:minmax(260px,420px) auto;align-items:end">' +
+        '<div class="form-field"><label><i class="fa-solid fa-magnifying-glass"></i> Select Project <span class="req">*</span></label><div id="bdg-proj-sdd"></div></div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;padding-bottom:2px">' +
+          '<button class="btn btn-accent" id="bdg-add-btn" onclick="openBudgetForm()"><i class="fa-solid fa-plus"></i> Add Budget Line</button>' +
+          '<button class="btn btn-light" onclick="syncAll(true)"><i class="fa-solid fa-rotate"></i> Refresh</button>' +
+          '<button class="btn btn-light" onclick="exportBudget()"><i class="fa-solid fa-download"></i> Export</button>' +
+          '<button class="btn btn-light" onclick="printPage()"><i class="fa-solid fa-print"></i> Print</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="action-bar"><div class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input id="bdg-search" placeholder="Search budget lines…" value="' + esc(budgetPageState.search) + '"></div></div>' +
+    '<div id="bdg-table"></div>';
+
+  createSearchDropdown('bdg-proj-sdd', {
+    placeholder:'Search project…',
+    getOptions: () => DB.Projects.map(p => ({ value:p.ProjectID, label:p.ProjectName, sub:p.ProjectID + ' · ' + p.Status })),
+    value: budgetPageState.projectId,
+    onSelect: v => { budgetPageState.projectId = v; renderBudgetTable(); }
+  });
+  document.getElementById('bdg-search').addEventListener('input', e => { budgetPageState.search = e.target.value; renderBudgetTable(); });
+  renderBudgetTable();
+}
+
+function budgetRows(){
+  let rows = DB.BudgetEntries.slice();
+  if (budgetPageState.projectId) rows = rows.filter(b => b.ProjectID === budgetPageState.projectId);
+  if (budgetPageState.search) {
+    const q = budgetPageState.search.toLowerCase();
+    rows = rows.filter(b => [b.BudgetID, projectName(b.ProjectID), shopName(b.ShopID), expHeadName(b.ExpHeadID), materialName(b.MaterialID), b.Status, b.Description]
+      .some(x => String(x || '').toLowerCase().includes(q)));
+  }
+  return rows;
+}
+
+function renderBudgetTable(){
+  const wrap = document.getElementById('bdg-table');
+  if (!wrap) return;
+  const rows = budgetRows();
+  if (rows.length === 0) {
+    wrap.innerHTML = '<div class="table-wrap"><div class="empty-state"><i class="fa-solid fa-file-invoice-dollar"></i>No budget entries found' +
+      (budgetPageState.projectId ? ' for ' + esc(projectName(budgetPageState.projectId)) : '') + '. Click "Add Budget Line" to create one!</div></div>';
+    return;
+  }
+  const totalBudget = sumField(rows, 'TotalAmount');
+  const totalSpent = round2(rows.reduce((t, b) => t + spentByBudget(b.BudgetID), 0));
+  wrap.innerHTML =
+    '<div class="table-wrap"><table class="data-table"><thead><tr>' +
+    '<th>ID</th><th>Project</th><th>Shop</th><th>Expense Head</th><th>Material</th><th>Unit</th>' +
+    '<th class="num">Qty</th><th class="num">Rate</th><th class="num">Budget Amount</th><th class="num">Spent</th><th>Utilization</th><th>Status</th><th class="col-actions">Actions</th>' +
+    '</tr></thead><tbody>' +
+    rows.map(b => {
+      const spent = spentByBudget(b.BudgetID);
+      const util = Number(b.TotalAmount) > 0 ? spent / Number(b.TotalAmount) * 100 : 0;
+      return '<tr><td><b>' + esc(b.BudgetID) + '</b></td><td>' + esc(projectName(b.ProjectID)) + '</td><td>' + esc(shopName(b.ShopID)) + '</td>' +
+        '<td>' + esc(expHeadName(b.ExpHeadID)) + '</td><td>' + esc(materialName(b.MaterialID)) + '</td><td>' + esc(unitAbbr(b.UnitID)) + '</td>' +
+        '<td class="num">' + fmtNum(b.Quantity) + '</td><td class="num">' + fmtMK(b.UnitRate) + '</td>' +
+        '<td class="num"><b>' + fmtMK(b.TotalAmount) + '</b></td><td class="num">' + fmtMK(spent) + '</td>' +
+        '<td>' + utilBarHTML(util) + '</td><td>' + statusBadge(b.Status) + '</td>' +
+        '<td class="col-actions" style="white-space:nowrap">' +
+          '<button class="btn-icon edit" title="Edit" onclick="openBudgetForm(\'' + b.BudgetID + '\')"><i class="fa-solid fa-pen"></i></button>' +
+          '<button class="btn-icon del" title="Delete" onclick="deleteBudget(\'' + b.BudgetID + '\')"><i class="fa-solid fa-trash"></i></button>' +
+        '</td></tr>';
+    }).join('') +
+    '</tbody><tfoot><tr><td colspan="8">Running Total (' + rows.length + ' line' + (rows.length === 1 ? '' : 's') + ')</td>' +
+    '<td class="num">' + fmtMK(totalBudget) + '</td><td class="num">' + fmtMK(totalSpent) + '</td>' +
+    '<td>' + utilBarHTML(totalBudget > 0 ? totalSpent / totalBudget * 100 : 0) + '</td><td colspan="2"></td></tr></tfoot></table></div>';
+}
+
+function exportBudget(){
+  exportCSV('Budget_Entries', ['Budget ID','Project','Shop','Expense Head','Material','Unit','Quantity','Unit Rate','Total Amount','Spent','Status','Created By','Created Date'],
+    budgetRows().map(b => [b.BudgetID, projectName(b.ProjectID), shopName(b.ShopID), expHeadName(b.ExpHeadID), materialName(b.MaterialID), unitAbbr(b.UnitID),
+      b.Quantity, b.UnitRate, b.TotalAmount, spentByBudget(b.BudgetID), b.Status, b.CreatedBy, fmtDT(b.CreatedDate)]));
+}
+
+let budgetFormCtx = null;
+function openBudgetForm(id){
+  if (!id && !budgetPageState.projectId) { toast('Please select a project first.', 'warn'); return; }
+  const rec = id ? findRec('BudgetEntries', 'BudgetID', id) : null;
+  const projId = rec ? rec.ProjectID : budgetPageState.projectId;
+  budgetFormCtx = { id: id || null, projectId: projId, sdds: {} };
+
+  openModal({
+    title: id ? 'Edit Budget Line — ' + id : 'Add Budget Line',
+    icon:'fa-file-invoice-dollar',
+    body:
+      '<div class="form-grid">' +
+        '<div class="form-field full"><label>Project</label><input readonly value="' + esc(projectName(projId) + ' (' + projId + ')') + '"></div>' +
+        '<div class="form-field" id="bf-field-ShopID"><label>Shop (optional)</label><div id="bf-sdd-shop"></div><span class="field-error" id="bf-err-ShopID"></span></div>' +
+        '<div class="form-field" id="bf-field-ExpHeadID"><label>Expense Head <span class="req">*</span></label><div id="bf-sdd-head"></div><span class="field-error" id="bf-err-ExpHeadID"></span></div>' +
+        '<div class="form-field" id="bf-field-MaterialID"><label>Material <span class="req">*</span></label><div id="bf-sdd-mat"></div><span class="field-error" id="bf-err-MaterialID"></span></div>' +
+        '<div class="form-field"><label>Unit (auto from material)</label><input readonly id="bf-unit-display" value="' + esc(rec ? unitName(rec.UnitID) : '') + '"></div>' +
+        '<div class="form-field" id="bf-field-Quantity"><label>Quantity <span class="req">*</span></label><input type="number" id="bf-qty" min="0" step="any" value="' + esc(rec ? rec.Quantity : '') + '"><span class="field-error" id="bf-err-Quantity"></span></div>' +
+        '<div class="form-field" id="bf-field-UnitRate"><label>Unit Rate (MK) <span class="req">*</span></label><input type="number" id="bf-rate" min="0" step="any" value="' + esc(rec ? rec.UnitRate : '') + '"><span class="field-error" id="bf-err-UnitRate"></span></div>' +
+        '<div class="form-field"><label>Total Amount (auto)</label><input readonly id="bf-total" value="' + (rec ? fmtMK(rec.TotalAmount) : 'MK 0.00') + '" style="font-weight:700"></div>' +
+        '<div class="form-field"><label>Status</label><select id="bf-status">' + ['Draft','Approved','Revised'].map(s => '<option ' + (rec && rec.Status === s ? 'selected' : '') + '>' + s + '</option>').join('') + '</select></div>' +
+        '<div class="form-field full"><label>Description</label><textarea id="bf-desc" rows="2">' + esc(rec ? rec.Description : '') + '</textarea></div>' +
+      '</div>',
+    foot:'<button class="btn btn-light" onclick="closeModal()"><i class="fa-solid fa-xmark"></i> Cancel</button>' +
+         '<button class="btn btn-accent" id="bf-save" onclick="saveBudgetForm()"><i class="fa-solid fa-floppy-disk"></i> Save</button>'
+  });
+
+  budgetFormCtx.sdds.shop = createSearchDropdown('bf-sdd-shop', {
+    placeholder:'Search shop (filtered by project)…',
+    getOptions: () => DB.Shops.filter(s => s.ProjectID === projId).map(s => ({ value:s.ShopID, label:s.ShopName, sub:s.ShopID + (s.FloorLevel ? ' · ' + s.FloorLevel : '') })),
+    value: rec ? rec.ShopID : ''
+  });
+  budgetFormCtx.sdds.head = createSearchDropdown('bf-sdd-head', {
+    placeholder:'Search expense head…',
+    getOptions: () => DB.ExpenseHeads.map(h => ({ value:h.ExpHeadID, label:h.ExpHeadName, sub:h.ExpHeadID + ' · ' + h.Category })),
+    value: rec ? rec.ExpHeadID : ''
+  });
+  budgetFormCtx.sdds.mat = createSearchDropdown('bf-sdd-mat', {
+    placeholder:'Search material…',
+    getOptions: () => DB.Materials.map(mm => ({ value:mm.MaterialID, label:mm.MaterialName, sub:mm.MaterialID + ' · ' + unitAbbr(mm.UnitID) })),
+    value: rec ? rec.MaterialID : '',
+    onSelect: v => {
+      const mm = findRec('Materials', 'MaterialID', v);
+      document.getElementById('bf-unit-display').value = mm ? unitName(mm.UnitID) : '';
+    }
+  });
+  const recalc = () => {
+    const q = Number(document.getElementById('bf-qty').value) || 0;
+    const r = Number(document.getElementById('bf-rate').value) || 0;
+    document.getElementById('bf-total').value = fmtMK(q * r);
+  };
+  document.getElementById('bf-qty').addEventListener('input', recalc);
+  document.getElementById('bf-rate').addEventListener('input', recalc);
+}
+
+async function saveBudgetForm(){
+  const { id, projectId, sdds } = budgetFormCtx;
+  const shopId = sdds.shop.getValue();
+  const headId = sdds.head.getValue();
+  const matId = sdds.mat.getValue();
+  const qty = Number(document.getElementById('bf-qty').value);
+  const rate = Number(document.getElementById('bf-rate').value);
+  let hasErr = false;
+  ['ShopID','ExpHeadID','MaterialID','Quantity','UnitRate'].forEach(k => setFieldError('bf', k, ''));
+  if (!headId) { setFieldError('bf', 'ExpHeadID', 'Expense Head is required'); hasErr = true; }
+  if (!matId) { setFieldError('bf', 'MaterialID', 'Material is required'); hasErr = true; }
+  if (!(qty > 0)) { setFieldError('bf', 'Quantity', 'Quantity must be greater than 0'); hasErr = true; }
+  if (!(rate > 0)) { setFieldError('bf', 'UnitRate', 'Unit Rate must be greater than 0'); hasErr = true; }
+  // Duplicate combination check (frontend)
+  const dupe = DB.BudgetEntries.find(b => b.ProjectID === projectId && String(b.ShopID || '') === String(shopId || '') &&
+    b.ExpHeadID === headId && b.MaterialID === matId && (!id || b.BudgetID !== id));
+  if (!hasErr && dupe) {
+    setFieldError('bf', 'MaterialID', 'This Project + Shop + Expense Head + Material combination already exists (' + dupe.BudgetID + ')');
+    hasErr = true;
+  }
+  if (hasErr) { toast('Please fix the highlighted fields.', 'error'); return; }
+
+  const mat = findRec('Materials', 'MaterialID', matId);
+  const data = {
+    ProjectID: projectId, ShopID: shopId || '', ExpHeadID: headId, MaterialID: matId,
+    Description: document.getElementById('bf-desc').value.trim(),
+    UnitID: mat ? mat.UnitID : '', Quantity: qty, UnitRate: rate, TotalAmount: round2(qty * rate),
+    Status: document.getElementById('bf-status').value
+  };
+  if (id) data.BudgetID = id;
+
+  const btn = document.getElementById('bf-save');
+  btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving…';
+  try {
+    const res = await apiPost({ action: id ? 'update' : 'create', entity:'BudgetEntries', data });
+    toast(res.message || 'Budget line saved', 'success');
+    closeModal();
+    await syncAll(false);
+    renderBudgetTable();
+  } catch (e) {
+    toast(e.message, 'error');
+    btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save';
+  }
+}
+
+async function deleteBudget(id){
+  const spent = spentByBudget(id);
+  const yes = await confirmDlg({
+    title:'Delete Budget Line', danger:true, icon:'fa-trash', yesText:'Yes, Delete',
+    html:'Delete budget line <b>' + esc(id) + '</b>?' + (spent > 0 ? '<br><b style="color:var(--danger)">Note:</b> ' + fmtMK(spent) + ' of actual expenses are linked to this line — deletion will be blocked by the server.' : '')
+  });
+  if (!yes) return;
+  spinner(true, 'Deleting…');
+  try {
+    const res = await apiPost({ action:'delete', entity:'BudgetEntries', id });
+    toast(res.message || 'Deleted', 'success');
+    await syncAll(false);
+    renderBudgetTable();
+  } catch (e) { toast(e.message, 'error'); }
+  finally { spinner(false); }
+}
+
+// ============ CONTRACTS / LPO / SALES INVOICE PAGE ============
+const contractsState = { search:'', fProject:'', fCustomer:'', fType:'', fStatus:'' };
+
+function renderContractsPage(){
+  const pg = document.getElementById('page-contracts');
+  pg.innerHTML =
+    breadcrumbHTML(['Transactions','Contracts / LPO / Invoice']) +
+    pageHeadHTML('fa-file-signature', 'Contracts / LPO / Sales Invoice') +
+    '<div class="action-bar">' +
+      '<button class="btn btn-accent" onclick="openContractForm()"><i class="fa-solid fa-plus"></i> Add New</button>' +
+      '<button class="btn btn-light" onclick="syncAll(true)"><i class="fa-solid fa-rotate"></i> Refresh</button>' +
+      '<button class="btn btn-light" onclick="exportContracts()"><i class="fa-solid fa-download"></i> Export</button>' +
+      '<button class="btn btn-light" onclick="printPage()"><i class="fa-solid fa-print"></i> Print</button>' +
+      '<div class="spacer"></div>' +
+      '<div class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input id="con-search" placeholder="Search contracts…" value="' + esc(contractsState.search) + '"></div>' +
+    '</div>' +
+    '<div class="filter-bar">' +
+      '<label>Project:</label><select id="con-f-proj"><option value="">All</option>' + DB.Projects.map(p => '<option value="' + p.ProjectID + '"' + (contractsState.fProject === p.ProjectID ? ' selected' : '') + '>' + esc(p.ProjectName) + '</option>').join('') + '</select>' +
+      '<label>Customer:</label><select id="con-f-cust"><option value="">All</option>' + DB.Customers.map(c => '<option value="' + c.CustomerID + '"' + (contractsState.fCustomer === c.CustomerID ? ' selected' : '') + '>' + esc(c.CustomerName) + '</option>').join('') + '</select>' +
+      '<label>Type:</label><select id="con-f-type"><option value="">All</option>' + ['Contract','LPO','Sales Invoice'].map(t => '<option' + (contractsState.fType === t ? ' selected' : '') + '>' + t + '</option>').join('') + '</select>' +
+      '<label>Status:</label><select id="con-f-status"><option value="">All</option>' + ['Draft','Active','Completed','Cancelled'].map(s => '<option' + (contractsState.fStatus === s ? ' selected' : '') + '>' + s + '</option>').join('') + '</select>' +
+    '</div>' +
+    '<div id="con-table"></div>';
+
+  document.getElementById('con-search').addEventListener('input', e => { contractsState.search = e.target.value; renderContractsTable(); });
+  document.getElementById('con-f-proj').addEventListener('change', e => { contractsState.fProject = e.target.value; renderContractsTable(); });
+  document.getElementById('con-f-cust').addEventListener('change', e => { contractsState.fCustomer = e.target.value; renderContractsTable(); });
+  document.getElementById('con-f-type').addEventListener('change', e => { contractsState.fType = e.target.value; renderContractsTable(); });
+  document.getElementById('con-f-status').addEventListener('change', e => { contractsState.fStatus = e.target.value; renderContractsTable(); });
+  renderContractsTable();
+}
+
+function contractRows(){
+  let rows = DB.Contracts.slice();
+  const s = contractsState;
+  if (s.fProject) rows = rows.filter(c => c.ProjectID === s.fProject);
+  if (s.fCustomer) rows = rows.filter(c => c.CustomerID === s.fCustomer);
+  if (s.fType) rows = rows.filter(c => c.ContractType === s.fType);
+  if (s.fStatus) rows = rows.filter(c => c.Status === s.fStatus);
+  if (s.search) {
+    const q = s.search.toLowerCase();
+    rows = rows.filter(c => [c.ContractID, c.ReferenceNo, projectName(c.ProjectID), customerName(c.CustomerID), c.ContractType, c.Description]
+      .some(x => String(x || '').toLowerCase().includes(q)));
+  }
+  return rows;
+}
+
+function renderContractsTable(){
+  const wrap = document.getElementById('con-table');
+  if (!wrap) return;
+  const rows = contractRows();
+  if (rows.length === 0) {
+    wrap.innerHTML = '<div class="table-wrap"><div class="empty-state"><i class="fa-solid fa-file-signature"></i>No contracts found. Click "+ Add New" to create your first record!</div></div>';
+    return;
+  }
+  wrap.innerHTML =
+    '<div class="table-wrap"><table class="data-table"><thead><tr>' +
+    '<th>ID</th><th>Reference No</th><th>Type</th><th>Project</th><th>Shop</th><th>Customer</th><th>Date</th><th class="num">Value</th><th>Status</th><th class="col-actions">Actions</th>' +
+    '</tr></thead><tbody>' +
+    rows.map(c =>
+      '<tr><td><b>' + esc(c.ContractID) + '</b></td><td>' + esc(c.ReferenceNo) + '</td><td><span class="badge badge-blue">' + esc(c.ContractType) + '</span></td>' +
+      '<td>' + esc(projectName(c.ProjectID)) + '</td><td>' + esc(shopName(c.ShopID)) + '</td><td>' + esc(customerName(c.CustomerID)) + '</td>' +
+      '<td>' + fmtDate(c.ContractDate) + '</td><td class="num"><b>' + fmtMK(c.ContractValue) + '</b></td><td>' + statusBadge(c.Status) + '</td>' +
+      '<td class="col-actions" style="white-space:nowrap">' +
+        '<button class="btn-icon edit" title="Edit" onclick="openContractForm(\'' + c.ContractID + '\')"><i class="fa-solid fa-pen"></i></button>' +
+        '<button class="btn-icon del" title="Delete" onclick="deleteContract(\'' + c.ContractID + '\')"><i class="fa-solid fa-trash"></i></button>' +
+      '</td></tr>').join('') +
+    '</tbody><tfoot><tr><td colspan="7">Total (' + rows.length + ' record' + (rows.length === 1 ? '' : 's') + ')</td>' +
+    '<td class="num">' + fmtMK(sumField(rows, 'ContractValue')) + '</td><td colspan="2"></td></tr></tfoot></table></div>';
+}
+
+function exportContracts(){
+  exportCSV('Contracts', ['Contract ID','Reference No','Type','Project','Shop','Customer','Date','Value','Status','Created By'],
+    contractRows().map(c => [c.ContractID, c.ReferenceNo, c.ContractType, projectName(c.ProjectID), shopName(c.ShopID), customerName(c.CustomerID), fmtDate(c.ContractDate), c.ContractValue, c.Status, c.CreatedBy]));
+}
+
+let contractFormCtx = null;
+function openContractForm(id){
+  const rec = id ? findRec('Contracts', 'ContractID', id) : null;
+  contractFormCtx = { id: id || null, sdds: {} };
+  openModal({
+    title: id ? 'Edit Contract — ' + id : 'New Contract / LPO / Sales Invoice',
+    icon:'fa-file-signature',
+    body:
+      '<div class="form-grid">' +
+        '<div class="form-field" id="cf-field-ProjectID"><label>Project <span class="req">*</span></label><div id="cf-sdd-proj"></div><span class="field-error" id="cf-err-ProjectID"></span></div>' +
+        '<div class="form-field"><label>Shop (optional, filtered by project)</label><div id="cf-sdd-shop"></div></div>' +
+        '<div class="form-field" id="cf-field-CustomerID"><label>Customer <span class="req">*</span></label><div id="cf-sdd-cust"></div><span class="field-error" id="cf-err-CustomerID"></span></div>' +
+        '<div class="form-field"><label>Contract Type <span class="req">*</span></label><select id="cf-type">' + ['Contract','LPO','Sales Invoice'].map(t => '<option' + (rec && rec.ContractType === t ? ' selected' : '') + '>' + t + '</option>').join('') + '</select></div>' +
+        '<div class="form-field" id="cf-field-ReferenceNo"><label>Reference No <span class="req">*</span></label><input id="cf-ref" value="' + esc(rec ? rec.ReferenceNo : '') + '"><span class="field-error" id="cf-err-ReferenceNo"></span></div>' +
+        '<div class="form-field" id="cf-field-ContractDate"><label>Contract Date <span class="req">*</span></label><input type="date" id="cf-date" value="' + esc(rec ? dateOnly(rec.ContractDate) : todayISO()) + '"><span class="field-error" id="cf-err-ContractDate"></span></div>' +
+        '<div class="form-field" id="cf-field-ContractValue"><label>Contract Value (MK) <span class="req">*</span></label><input type="number" id="cf-value" min="0" step="any" value="' + esc(rec ? rec.ContractValue : '') + '"><span class="field-error" id="cf-err-ContractValue"></span></div>' +
+        '<div class="form-field"><label>Status</label><select id="cf-status">' + ['Draft','Active','Completed','Cancelled'].map(s => '<option' + (rec && rec.Status === s ? ' selected' : '') + '>' + s + '</option>').join('') + '</select></div>' +
+        '<div class="form-field full"><label>Description</label><textarea id="cf-desc" rows="2">' + esc(rec ? rec.Description : '') + '</textarea></div>' +
+      '</div>',
+    foot:'<button class="btn btn-light" onclick="closeModal()"><i class="fa-solid fa-xmark"></i> Cancel</button>' +
+         '<button class="btn btn-accent" id="cf-save" onclick="saveContractForm()"><i class="fa-solid fa-floppy-disk"></i> Save</button>'
+  });
+  contractFormCtx.sdds.proj = createSearchDropdown('cf-sdd-proj', {
+    placeholder:'Search project…',
+    getOptions: () => DB.Projects.map(p => ({ value:p.ProjectID, label:p.ProjectName, sub:p.ProjectID })),
+    value: rec ? rec.ProjectID : '',
+    onSelect: () => { contractFormCtx.sdds.shop.clear(); contractFormCtx.sdds.shop.refresh(); }
+  });
+  contractFormCtx.sdds.shop = createSearchDropdown('cf-sdd-shop', {
+    placeholder:'Search shop…',
+    getOptions: () => DB.Shops.filter(s => s.ProjectID === contractFormCtx.sdds.proj.getValue()).map(s => ({ value:s.ShopID, label:s.ShopName, sub:s.ShopID })),
+    value: rec ? rec.ShopID : ''
+  });
+  contractFormCtx.sdds.cust = createSearchDropdown('cf-sdd-cust', {
+    placeholder:'Search customer…',
+    getOptions: () => DB.Customers.map(c => ({ value:c.CustomerID, label:c.CustomerName, sub:c.CustomerID })),
+    value: rec ? rec.CustomerID : ''
+  });
+}
+
+async function saveContractForm(){
+  const { id, sdds } = contractFormCtx;
+  const data = {
+    ProjectID: sdds.proj.getValue(), ShopID: sdds.shop.getValue() || '', CustomerID: sdds.cust.getValue(),
+    ContractType: document.getElementById('cf-type').value,
+    ReferenceNo: document.getElementById('cf-ref').value.trim(),
+    ContractDate: document.getElementById('cf-date').value,
+    ContractValue: Number(document.getElementById('cf-value').value),
+    Description: document.getElementById('cf-desc').value.trim(),
+    Status: document.getElementById('cf-status').value
+  };
+  let hasErr = false;
+  ['ProjectID','CustomerID','ReferenceNo','ContractDate','ContractValue'].forEach(k => setFieldError('cf', k, ''));
+  if (!data.ProjectID) { setFieldError('cf', 'ProjectID', 'Project is required'); hasErr = true; }
+  if (!data.CustomerID) { setFieldError('cf', 'CustomerID', 'Customer is required'); hasErr = true; }
+  if (!data.ReferenceNo) { setFieldError('cf', 'ReferenceNo', 'Reference No is required'); hasErr = true; }
+  if (!data.ContractDate) { setFieldError('cf', 'ContractDate', 'Contract Date is required'); hasErr = true; }
+  if (!(data.ContractValue > 0)) { setFieldError('cf', 'ContractValue', 'Contract Value must be greater than 0'); hasErr = true; }
+  const dupe = DB.Contracts.find(c => String(c.ReferenceNo).trim().toLowerCase() === data.ReferenceNo.toLowerCase() && (!id || c.ContractID !== id));
+  if (!hasErr && dupe) { setFieldError('cf', 'ReferenceNo', "Reference No '" + data.ReferenceNo + "' already exists (" + dupe.ContractID + ')'); hasErr = true; }
+  if (hasErr) { toast('Please fix the highlighted fields.', 'error'); return; }
+  if (id) data.ContractID = id;
+
+  const btn = document.getElementById('cf-save');
+  btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving…';
+  try {
+    const res = await apiPost({ action: id ? 'update' : 'create', entity:'Contracts', data });
+    toast(res.message || 'Contract saved', 'success');
+    closeModal();
+    await syncAll(false);
+    renderContractsTable();
+  } catch (e) {
+    toast(e.message, 'error');
+    btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save';
+  }
+}
+
+async function deleteContract(id){
+  const yes = await confirmDlg({ title:'Delete Contract', danger:true, icon:'fa-trash', yesText:'Yes, Delete',
+    html:'Are you sure you want to permanently delete contract <b>' + esc(id) + '</b>?' });
+  if (!yes) return;
+  spinner(true, 'Deleting…');
+  try {
+    const res = await apiPost({ action:'delete', entity:'Contracts', id });
+    toast(res.message || 'Deleted', 'success');
+    await syncAll(false);
+    renderContractsTable();
+  } catch (e) { toast(e.message, 'error'); }
+  finally { spinner(false); }
+}
+
+// ============ ACTUAL EXPENSE ENTRY PAGE (CRITICAL CONTROLS) ============
+const expenseState = { projectId:'', budgetId:'', editId:null, search:'' };
+let expSdds = {};
+
+function budgetOptionLabel(b){
+  const budget = Number(b.TotalAmount || 0);
+  const spent = spentByBudget(b.BudgetID);
+  return b.BudgetID + ' - ' + materialName(b.MaterialID) + ' - ' + fmtNum(b.Quantity) + ' ' + unitAbbr(b.UnitID) + ' - ' + fmtMK(budget);
+}
+function budgetOptionSub(b){
+  const spent = spentByBudget(b.BudgetID);
+  return 'Spent: ' + fmtMK(spent) + ' | Remaining: ' + fmtMK(Number(b.TotalAmount || 0) - spent) + (b.ShopID ? ' | ' + shopName(b.ShopID) : '');
+}
+
+function renderExpensesPage(){
+  const pg = document.getElementById('page-expenses');
+  pg.innerHTML =
+    breadcrumbHTML(['Transactions','Actual Expenses']) +
+    pageHeadHTML('fa-money-bill-wave', 'Actual Expense Entry') +
+    '<div class="charts-grid" style="grid-template-columns:1.5fr 1fr;align-items:start">' +
+      '<div class="card" style="margin-bottom:0">' +
+        '<h3 style="margin-bottom:4px"><i class="fa-solid fa-lock" style="color:var(--accent)"></i> ' + (expenseState.editId ? 'Edit Expense — ' + esc(expenseState.editId) : 'New Expense Entry') + '</h3>' +
+        '<p class="form-hint" style="margin-bottom:8px">Expenses are STRICTLY linked to budget line items. Select a project, then choose one of its budget lines — expense head, material and unit cannot be typed manually.</p>' +
+        '<div class="step-label"><span class="step-num">1</span> Select Project</div>' +
+        '<div id="exp-sdd-proj"></div>' +
+        '<div class="step-label"><span class="step-num">2</span> Select Budget Line Item</div>' +
+        '<div id="exp-sdd-budget"></div>' +
+        '<div class="readonly-grid">' +
+          '<div style="font-size:11.5px;font-weight:600;color:var(--text-secondary);margin-bottom:8px"><i class="fa-solid fa-lock"></i> AUTO-POPULATED FIELDS (READ-ONLY)</div>' +
+          '<div class="form-grid">' +
+            '<div class="form-field"><label>Shop</label><input readonly id="exp-ro-shop" value="—"></div>' +
+            '<div class="form-field"><label>Expense Head</label><input readonly id="exp-ro-head" value="—"></div>' +
+            '<div class="form-field"><label>Material</label><input readonly id="exp-ro-mat" value="—"></div>' +
+            '<div class="form-field"><label>Unit</label><input readonly id="exp-ro-unit" value="—"></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="step-label"><span class="step-num">3</span> Expense Details</div>' +
+        '<div class="form-grid">' +
+          '<div class="form-field" id="exp-field-SupplierID"><label>Supplier <span class="req">*</span></label><div id="exp-sdd-supplier"></div><span class="field-error" id="exp-err-SupplierID"></span></div>' +
+          '<div class="form-field" id="exp-field-ExpenseDate"><label>Expense Date <span class="req">*</span></label><input type="date" id="exp-date" value="' + todayISO() + '"><span class="field-error" id="exp-err-ExpenseDate"></span></div>' +
+          '<div class="form-field" id="exp-field-Quantity"><label>Quantity <span class="req">*</span></label><input type="number" id="exp-qty" min="0" step="any"><span class="field-error" id="exp-err-Quantity"></span></div>' +
+          '<div class="form-field" id="exp-field-UnitRate"><label>Unit Rate (MK) <span class="req">*</span></label><input type="number" id="exp-rate" min="0" step="any"><span class="field-error" id="exp-err-UnitRate"></span></div>' +
+          '<div class="form-field"><label>Total Amount (auto)</label><input readonly id="exp-total" value="MK 0.00" style="font-weight:700"></div>' +
+          '<div class="form-field"><label>Status</label><select id="exp-status"><option>Pending</option><option>Approved</option><option>Paid</option></select></div>' +
+          '<div class="form-field"><label>Invoice Ref</label><input id="exp-invref"></div>' +
+          '<div class="form-field full"><label>Notes</label><textarea id="exp-notes" rows="2"></textarea></div>' +
+        '</div>' +
+        '<div class="overrun-alert" id="exp-overrun"></div>' +
+        '<div style="display:flex;gap:9px;margin-top:14px;flex-wrap:wrap">' +
+          '<button class="btn btn-accent" id="exp-save" onclick="saveExpense()"><i class="fa-solid fa-floppy-disk"></i> Save</button>' +
+          '<button class="btn btn-light" onclick="resetExpenseForm()"><i class="fa-solid fa-xmark"></i> Cancel</button>' +
+          '<button class="btn btn-light" onclick="showPage(\'page-dashboard\')"><i class="fa-solid fa-house"></i> Home</button>' +
+        '</div>' +
+      '</div>' +
+      '<div>' +
+        '<div class="tracker-box" id="exp-tracker">' +
+          '<h4><i class="fa-solid fa-chart-simple"></i> BUDGET TRACKER</h4>' +
+          '<div class="form-hint" style="color:#aab">Select a budget line item to see live tracking.</div>' +
+        '</div>' +
+        '<div class="card"><h3 style="font-size:13.5px;margin-bottom:10px"><i class="fa-solid fa-clock-rotate-left" style="color:var(--accent)"></i> Expense History for Selected Budget Item</h3><div id="exp-history"></div></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="card" style="margin-top:18px">' +
+      '<div class="action-bar" style="margin-bottom:10px">' +
+        '<h3><i class="fa-solid fa-table-list" style="color:var(--accent)"></i> All Actual Expenses</h3><div class="spacer"></div>' +
+        '<div class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input id="exp-search" placeholder="Search expenses…" value="' + esc(expenseState.search) + '"></div>' +
+        '<button class="btn btn-light btn-sm" onclick="syncAll(true)"><i class="fa-solid fa-rotate"></i> Refresh</button>' +
+        '<button class="btn btn-light btn-sm" onclick="exportExpenses()"><i class="fa-solid fa-download"></i> Export</button>' +
+        '<button class="btn btn-light btn-sm" onclick="printPage()"><i class="fa-solid fa-print"></i> Print</button>' +
+      '</div>' +
+      '<div id="exp-all-table"></div>' +
+    '</div>';
+
+  expSdds = {};
+  expSdds.proj = createSearchDropdown('exp-sdd-proj', {
+    placeholder:'🔍 Search project…',
+    getOptions: () => DB.Projects.map(p => ({ value:p.ProjectID, label:p.ProjectName, sub:p.ProjectID + ' · ' + p.Status })),
+    value: expenseState.projectId,
+    onSelect: v => {
+      expenseState.projectId = v;
+      expenseState.budgetId = '';
+      expSdds.budget.clear();
+      const hasLines = DB.BudgetEntries.some(b => b.ProjectID === v);
+      if (v && !hasLines) toast('No budget lines exist for this project yet. Create budget entries first — expenses can only be recorded against a budget line.', 'warn');
+      updateExpenseAutoFields();
+    }
+  });
+  expSdds.budget = createSearchDropdown('exp-sdd-budget', {
+    placeholder:'🔍 Search budget line item (select project first)…',
+    getOptions: () => DB.BudgetEntries.filter(b => b.ProjectID === expenseState.projectId)
+      .map(b => ({ value:b.BudgetID, label: budgetOptionLabel(b), sub: budgetOptionSub(b) })),
+    value: expenseState.budgetId,
+    onSelect: v => { expenseState.budgetId = v; updateExpenseAutoFields(); }
+  });
+  expSdds.supplier = createSearchDropdown('exp-sdd-supplier', {
+    placeholder:'🔍 Search supplier…',
+    getOptions: () => DB.Suppliers.filter(s => s.Status !== 'Inactive').map(s => ({ value:s.SupplierID, label:s.SupplierName, sub:s.SupplierID }))
+  });
+
+  const recalc = () => { updateExpenseTracker(); };
+  document.getElementById('exp-qty').addEventListener('input', recalc);
+  document.getElementById('exp-rate').addEventListener('input', recalc);
+  document.getElementById('exp-search').addEventListener('input', e => { expenseState.search = e.target.value; renderAllExpensesTable(); });
+
+  updateExpenseAutoFields();
+  renderAllExpensesTable();
+}
+
+function currentEntryAmount(){
+  const q = Number(document.getElementById('exp-qty').value) || 0;
+  const r = Number(document.getElementById('exp-rate').value) || 0;
+  return round2(q * r);
+}
+
+function updateExpenseAutoFields(){
+  const b = expenseState.budgetId ? findRec('BudgetEntries', 'BudgetID', expenseState.budgetId) : null;
+  document.getElementById('exp-ro-shop').value = b ? (b.ShopID ? b.ShopID + ' - ' + shopName(b.ShopID) : '— (whole project)') : '—';
+  document.getElementById('exp-ro-head').value = b ? b.ExpHeadID + ' - ' + expHeadName(b.ExpHeadID) : '—';
+  document.getElementById('exp-ro-mat').value = b ? b.MaterialID + ' - ' + materialName(b.MaterialID) : '—';
+  document.getElementById('exp-ro-unit').value = b ? unitName(b.UnitID) : '—';
+  updateExpenseTracker();
+  renderExpenseHistory();
+}
+
+function updateExpenseTracker(){
+  const totalEl = document.getElementById('exp-total');
+  const entry = currentEntryAmount();
+  if (totalEl) totalEl.value = fmtMK(entry);
+  const tracker = document.getElementById('exp-tracker');
+  const overrunEl = document.getElementById('exp-overrun');
+  if (!tracker) return;
+  const b = expenseState.budgetId ? findRec('BudgetEntries', 'BudgetID', expenseState.budgetId) : null;
+  if (!b) {
+    tracker.innerHTML = '<h4><i class="fa-solid fa-chart-simple"></i> BUDGET TRACKER</h4><div class="form-hint" style="color:#aab">Select a budget line item to see live tracking.</div>';
+    overrunEl.style.display = 'none';
+    return;
+  }
+  const budget = Number(b.TotalAmount || 0);
+  const spent = spentByBudget(b.BudgetID, expenseState.editId);
+  const remaining = round2(budget - spent - entry);
+  const pct = budget > 0 ? (spent + entry) / budget * 100 : 0;
+  const over = spent + entry > budget;
+  tracker.innerHTML =
+    '<h4><i class="fa-solid fa-chart-simple"></i> BUDGET TRACKER — ' + esc(b.BudgetID) + '</h4>' +
+    '<div class="tracker-row"><span>Budgeted:</span><b>' + fmtMK(budget) + '</b></div>' +
+    '<div class="tracker-row"><span>Spent (other entries):</span><b>' + fmtMK(spent) + '</b></div>' +
+    '<div class="tracker-row"><span>This Entry:</span><b>' + fmtMK(entry) + '</b></div>' +
+    '<div class="tracker-row" style="border-top:1px solid rgba(255,255,255,.25);margin-top:5px;padding-top:6px"><span>Remaining:</span><b style="color:' + (remaining < 0 ? '#ff8a8a' : '#7bedaa') + '">' + fmtMK(remaining) + '</b></div>' +
+    '<div class="progress"><div class="progress-bar ' + (pct > 100 ? 'over' : pct > 75 ? 'warn' : '') + '" style="width:' + Math.min(pct, 100) + '%"></div></div>' +
+    '<div class="tracker-row"><span>Utilization (incl. this entry)</span><b>' + fmtPct(pct) + '</b></div>' +
+    '<div class="tracker-status">' + (over ? '🔴 Status: OVER BUDGET' : pct > 75 ? '🟡 Status: Approaching Limit' : '✅ Status: Within Budget') + '</div>';
+  if (over && entry > 0) {
+    overrunEl.style.display = 'block';
+    overrunEl.innerHTML = '<b>⚠️ WARNING:</b> This expense will exceed the budgeted amount of <b>' + fmtMK(budget) + '</b> by <b>' + fmtMK(spent + entry - budget) + '</b>';
+  } else {
+    overrunEl.style.display = 'none';
+  }
+}
+
+function renderExpenseHistory(){
+  const el = document.getElementById('exp-history');
+  if (!el) return;
+  if (!expenseState.budgetId) { el.innerHTML = '<div class="empty-state" style="padding:22px"><i class="fa-solid fa-list"></i>No budget item selected</div>'; return; }
+  const rows = DB.ActualExpenses.filter(e => e.BudgetID === expenseState.budgetId)
+    .sort((a, b) => new Date(b.ExpenseDate) - new Date(a.ExpenseDate));
+  if (rows.length === 0) { el.innerHTML = '<div class="empty-state" style="padding:22px"><i class="fa-solid fa-list"></i>No expenses recorded against this budget line yet</div>'; return; }
+  el.innerHTML =
+    '<div class="table-wrap" style="box-shadow:none"><table class="data-table" style="min-width:420px"><thead><tr>' +
+    '<th>ID</th><th>Date</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th><th>Supplier</th></tr></thead><tbody>' +
+    rows.map(e =>
+      '<tr><td>' + esc(e.ExpenseID) + '</td><td>' + fmtDate(e.ExpenseDate) + '</td><td class="num">' + fmtNum(e.Quantity) + '</td>' +
+      '<td class="num">' + fmtNum(e.UnitRate) + '</td><td class="num">' + fmtMK(e.TotalAmount) + '</td><td>' + esc(supplierName(e.SupplierID)) + '</td></tr>').join('') +
+    '</tbody><tfoot><tr><td colspan="4">Total Spent</td><td class="num">' + fmtMK(sumField(rows, 'TotalAmount')) + '</td><td></td></tr></tfoot></table></div>';
+}
+
+function resetExpenseForm(){
+  expenseState.editId = null;
+  expenseState.budgetId = '';
+  expSdds.budget.clear();
+  expSdds.supplier.clear();
+  document.getElementById('exp-date').value = todayISO();
+  document.getElementById('exp-qty').value = '';
+  document.getElementById('exp-rate').value = '';
+  document.getElementById('exp-invref').value = '';
+  document.getElementById('exp-notes').value = '';
+  document.getElementById('exp-status').value = 'Pending';
+  document.getElementById('exp-save').innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save';
+  updateExpenseAutoFields();
+  renderExpensesPage();
+}
+
+async function saveExpense(){
+  const b = expenseState.budgetId ? findRec('BudgetEntries', 'BudgetID', expenseState.budgetId) : null;
+  const qty = Number(document.getElementById('exp-qty').value);
+  const rate = Number(document.getElementById('exp-rate').value);
+  const supplierId = expSdds.supplier.getValue();
+  const date = document.getElementById('exp-date').value;
+  let hasErr = false;
+  ['SupplierID','ExpenseDate','Quantity','UnitRate'].forEach(k => setFieldError('exp', k, ''));
+  if (!expenseState.projectId) { toast('Step 1: please select a Project.', 'error'); return; }
+  if (!b) { toast('Step 2: please select a Budget Line Item. Expenses must be linked to an existing budget line.', 'error'); return; }
+  if (!supplierId) { setFieldError('exp', 'SupplierID', 'Supplier is required'); hasErr = true; }
+  if (!date) { setFieldError('exp', 'ExpenseDate', 'Expense Date is required'); hasErr = true; }
+  if (!(qty > 0)) { setFieldError('exp', 'Quantity', 'Quantity must be greater than 0'); hasErr = true; }
+  if (!(rate > 0)) { setFieldError('exp', 'UnitRate', 'Unit Rate must be greater than 0'); hasErr = true; }
+  if (hasErr) { toast('Please fix the highlighted fields.', 'error'); return; }
+
+  const entry = round2(qty * rate);
+  const budget = Number(b.TotalAmount || 0);
+  const spent = spentByBudget(b.BudgetID, expenseState.editId);
+
+  // Soft budget overrun warning
+  if (spent + entry > budget) {
+    const proceed = await confirmDlg({
+      title:'⚠️ BUDGET OVERRUN WARNING', danger:true, icon:'fa-triangle-exclamation',
+      yesText:'Yes, Save Anyway', noText:'Cancel',
+      html:'This expense of <b>' + fmtMK(entry) + '</b> will cause the total spending (<b>' + fmtMK(spent + entry) + '</b>) to <b>EXCEED</b> the budget of <b>' +
+           fmtMK(budget) + '</b> by <b style="color:var(--danger)">' + fmtMK(spent + entry - budget) + '</b>!<br><br>Do you still want to proceed?'
+    });
+    if (!proceed) return;
+  }
+
+  const data = {
+    ProjectID: expenseState.projectId, BudgetID: b.BudgetID,
+    ShopID: b.ShopID || '', ExpHeadID: b.ExpHeadID, MaterialID: b.MaterialID, UnitID: b.UnitID,
+    SupplierID: supplierId, ExpenseDate: date, Quantity: qty, UnitRate: rate, TotalAmount: entry,
+    InvoiceRef: document.getElementById('exp-invref').value.trim(),
+    Notes: document.getElementById('exp-notes').value.trim(),
+    Status: document.getElementById('exp-status').value
+  };
+  if (expenseState.editId) data.ExpenseID = expenseState.editId;
+
+  const btn = document.getElementById('exp-save');
+  btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving…';
+  try {
+    const res = await apiPost({ action: expenseState.editId ? 'update' : 'create', entity:'ActualExpenses', data });
+    toast(res.message || 'Expense saved', 'success');
+    const keepProj = expenseState.projectId, keepBudget = expenseState.budgetId;
+    expenseState.editId = null;
+    await syncAll(false);
+    expenseState.projectId = keepProj; expenseState.budgetId = keepBudget;
+    renderExpensesPage();
+  } catch (e) {
+    toast(e.message, 'error');
+    btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save';
+  }
+}
+
+function editExpense(id){
+  const e = findRec('ActualExpenses', 'ExpenseID', id);
+  if (!e) return;
+  expenseState.editId = id;
+  expenseState.projectId = e.ProjectID;
+  expenseState.budgetId = e.BudgetID;
+  renderExpensesPage();
+  expSdds.proj.setValue(e.ProjectID);
+  expSdds.budget.setValue(e.BudgetID);
+  expSdds.supplier.setValue(e.SupplierID);
+  document.getElementById('exp-date').value = dateOnly(e.ExpenseDate);
+  document.getElementById('exp-qty').value = e.Quantity;
+  document.getElementById('exp-rate').value = e.UnitRate;
+  document.getElementById('exp-invref').value = e.InvoiceRef || '';
+  document.getElementById('exp-notes').value = e.Notes || '';
+  document.getElementById('exp-status').value = e.Status || 'Pending';
+  document.getElementById('exp-save').innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Update';
+  updateExpenseAutoFields();
+  window.scrollTo({ top:0, behavior:'smooth' });
+  toast('Editing expense ' + id + ' — form pre-filled above.', 'info');
+}
+
+async function deleteExpense(id){
+  const yes = await confirmDlg({ title:'Delete Expense', danger:true, icon:'fa-trash', yesText:'Yes, Delete',
+    html:'Are you sure you want to permanently delete expense <b>' + esc(id) + '</b>?' });
+  if (!yes) return;
+  spinner(true, 'Deleting…');
+  try {
+    const res = await apiPost({ action:'delete', entity:'ActualExpenses', id });
+    toast(res.message || 'Deleted', 'success');
+    await syncAll(false);
+    renderAllExpensesTable();
+    updateExpenseAutoFields();
+  } catch (e) { toast(e.message, 'error'); }
+  finally { spinner(false); }
+}
+
+function allExpenseRows(){
+  let rows = DB.ActualExpenses.slice().sort((a, b) => new Date(b.ExpenseDate) - new Date(a.ExpenseDate));
+  if (expenseState.search) {
+    const q = expenseState.search.toLowerCase();
+    rows = rows.filter(e => [e.ExpenseID, e.BudgetID, projectName(e.ProjectID), materialName(e.MaterialID), expHeadName(e.ExpHeadID), supplierName(e.SupplierID), e.InvoiceRef, e.Status]
+      .some(x => String(x || '').toLowerCase().includes(q)));
+  }
+  return rows;
+}
+
+function renderAllExpensesTable(){
+  const wrap = document.getElementById('exp-all-table');
+  if (!wrap) return;
+  const rows = allExpenseRows();
+  if (rows.length === 0) {
+    wrap.innerHTML = '<div class="empty-state"><i class="fa-solid fa-money-bill-wave"></i>No expense entries found. Use the form above to record your first expense!</div>';
+    return;
+  }
+  wrap.innerHTML =
+    '<div class="table-wrap" style="box-shadow:none"><table class="data-table"><thead><tr>' +
+    '<th>ID</th><th>Date</th><th>Project</th><th>Budget Line</th><th>Material</th><th>Supplier</th>' +
+    '<th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th><th>Invoice</th><th>Status</th><th class="col-actions">Actions</th></tr></thead><tbody>' +
+    rows.map(e =>
+      '<tr><td><b>' + esc(e.ExpenseID) + '</b></td><td>' + fmtDate(e.ExpenseDate) + '</td><td>' + esc(projectName(e.ProjectID)) + '</td>' +
+      '<td>' + esc(e.BudgetID) + '</td><td>' + esc(materialName(e.MaterialID)) + '</td><td>' + esc(supplierName(e.SupplierID)) + '</td>' +
+      '<td class="num">' + fmtNum(e.Quantity) + '</td><td class="num">' + fmtNum(e.UnitRate) + '</td><td class="num"><b>' + fmtMK(e.TotalAmount) + '</b></td>' +
+      '<td>' + esc(e.InvoiceRef || '—') + '</td><td>' + statusBadge(e.Status) + '</td>' +
+      '<td class="col-actions" style="white-space:nowrap">' +
+        '<button class="btn-icon edit" title="Edit" onclick="editExpense(\'' + e.ExpenseID + '\')"><i class="fa-solid fa-pen"></i></button>' +
+        '<button class="btn-icon del" title="Delete" onclick="deleteExpense(\'' + e.ExpenseID + '\')"><i class="fa-solid fa-trash"></i></button>' +
+      '</td></tr>').join('') +
+    '</tbody><tfoot><tr><td colspan="8">Total (' + rows.length + ' entr' + (rows.length === 1 ? 'y' : 'ies') + ')</td>' +
+    '<td class="num">' + fmtMK(sumField(rows, 'TotalAmount')) + '</td><td colspan="3"></td></tr></tfoot></table></div>';
+}
+
+function exportExpenses(){
+  exportCSV('Actual_Expenses', ['Expense ID','Date','Project','Budget ID','Shop','Expense Head','Material','Unit','Supplier','Quantity','Unit Rate','Total Amount','Invoice Ref','Status','Created By'],
+    allExpenseRows().map(e => [e.ExpenseID, fmtDate(e.ExpenseDate), projectName(e.ProjectID), e.BudgetID, shopName(e.ShopID), expHeadName(e.ExpHeadID),
+      materialName(e.MaterialID), unitAbbr(e.UnitID), supplierName(e.SupplierID), e.Quantity, e.UnitRate, e.TotalAmount, e.InvoiceRef, e.Status, e.CreatedBy]));
+}
+
+// ============ REPORTS ENGINE ============
+const reportState = {};   // per-report filter values
+const reportExport = {};  // per-report last generated CSV payload
+
+const REPORTS = {
+  budgetVsActual: { pageId:'page-rpt-budget-vs-actual', title:'Budget vs Actual Report', icon:'fa-scale-balanced',
+    filters:[ { k:'projectId', l:'Project', type:'project', required:true }, { k:'shopId', l:'Shop (optional)', type:'shop' }, { k:'expHeadId', l:'Expense Head (optional)', type:'head' } ] },
+  profitability: { pageId:'page-rpt-profitability', title:'Project Profitability Report', icon:'fa-sack-dollar',
+    filters:[ { k:'projectId', l:'Project', type:'project', required:true } ] },
+  itemWise: { pageId:'page-rpt-item-wise', title:'Item-wise Report', icon:'fa-boxes-stacked',
+    filters:[ { k:'projectId', l:'Project (optional)', type:'project' }, { k:'materialId', l:'Material (optional)', type:'material' } ] },
+  shopWise: { pageId:'page-rpt-shop-wise', title:'Shop-wise Report', icon:'fa-shop',
+    filters:[ { k:'projectId', l:'Project (optional)', type:'project' } ] },
+  projectWise: { pageId:'page-rpt-project-wise', title:'Project-wise Summary Report', icon:'fa-diagram-project', filters:[] },
+  pnl: { pageId:'page-rpt-pnl', title:'Profit & Loss Statement', icon:'fa-file-invoice',
+    filters:[ { k:'projectId', l:'Project (optional)', type:'project' }, { k:'dateFrom', l:'From Date', type:'date' }, { k:'dateTo', l:'To Date', type:'date' } ] },
+  supplierWise: { pageId:'page-rpt-supplier-wise', title:'Supplier-wise Report', icon:'fa-truck',
+    filters:[ { k:'projectId', l:'Project (optional)', type:'project' }, { k:'supplierId', l:'Supplier (optional)', type:'supplier' }, { k:'dateFrom', l:'From Date', type:'date' }, { k:'dateTo', l:'To Date', type:'date' } ] }
+};
+
+function renderReport(key){
+  const R = REPORTS[key];
+  const st = reportState[key] = reportState[key] || {};
+  const pg = document.getElementById(R.pageId);
+  pg.innerHTML =
+    breadcrumbHTML(PAGE_META[R.pageId].crumb) +
+    pageHeadHTML(R.icon, R.title,
+      '<button class="btn btn-light btn-sm" onclick="exportReport(\'' + key + '\')"><i class="fa-solid fa-download"></i> Export CSV</button>' +
+      '<button class="btn btn-light btn-sm" onclick="printPage()"><i class="fa-solid fa-print"></i> Print</button>') +
+    '<div class="card"><div class="rpt-filters">' +
+      R.filters.map(f => {
+        if (f.type === 'date') return '<div class="form-field"><label>' + esc(f.l) + '</label><input type="date" id="rf-' + key + '-' + f.k + '" value="' + esc(st[f.k] || '') + '"></div>';
+        return '<div class="form-field"><label>' + esc(f.l) + (f.required ? ' <span class="req">*</span>' : '') + '</label><div id="rf-sdd-' + key + '-' + f.k + '"></div></div>';
+      }).join('') +
+      '<div class="form-field"><label>&nbsp;</label><button class="btn btn-accent" onclick="generateReport(\'' + key + '\')"><i class="fa-solid fa-play"></i> Generate Report</button></div>' +
+    '</div></div>' +
+    '<div id="rpt-out-' + key + '"></div>';
+
+  R.filters.forEach(f => {
+    if (f.type === 'date') {
+      document.getElementById('rf-' + key + '-' + f.k).addEventListener('change', e => { st[f.k] = e.target.value; });
+      return;
+    }
+    const sources = {
+      project: () => DB.Projects.map(p => ({ value:p.ProjectID, label:p.ProjectName, sub:p.ProjectID })),
+      shop: () => DB.Shops.filter(s => !st.projectId || s.ProjectID === st.projectId).map(s => ({ value:s.ShopID, label:s.ShopName, sub:s.ShopID })),
+      head: () => DB.ExpenseHeads.map(h => ({ value:h.ExpHeadID, label:h.ExpHeadName, sub:h.Category })),
+      material: () => DB.Materials.map(m => ({ value:m.MaterialID, label:m.MaterialName, sub:m.MaterialID })),
+      supplier: () => DB.Suppliers.map(s => ({ value:s.SupplierID, label:s.SupplierName, sub:s.SupplierID }))
+    };
+    createSearchDropdown('rf-sdd-' + key + '-' + f.k, {
+      placeholder:'Search…', getOptions: sources[f.type], value: st[f.k] || '',
+      onSelect: v => { st[f.k] = v; }
+    });
+  });
+  // Auto-generate if requirements are already satisfied
+  if (R.filters.every(f => !f.required || st[f.k])) generateReport(key);
+}
+
+function reportOut(key){ return document.getElementById('rpt-out-' + key); }
+function exportReport(key){
+  const ex = reportExport[key];
+  if (!ex) { toast('Generate the report first, then export.', 'warn'); return; }
+  exportCSV(ex.name, ex.headers, ex.rows);
+}
+function requireFilters(key){
+  const R = REPORTS[key];
+  const st = reportState[key];
+  const missing = R.filters.filter(f => f.required && !st[f.k]);
+  if (missing.length) {
+    reportOut(key).innerHTML = '<div class="card"><div class="empty-state"><i class="fa-solid fa-filter"></i>Please select: ' + missing.map(f => f.l).join(', ') + '</div></div>';
+    return false;
+  }
+  return true;
+}
+function utilLegendHTML(){
+  return '<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;margin:8px 2px 12px">' +
+    '<span>🟢 0–75% utilization</span><span>🟡 75–100% utilization</span><span>🔴 Over 100% (over budget)</span></div>';
+}
+function utilStatusEmoji(p){ return p > 100 ? '🔴' : p > 75 ? '🟡' : '🟢'; }
+
+// ---- 1. Budget vs Actual ----
+function genBudgetVsActual(key){
+  if (!requireFilters(key)) return;
+  const st = reportState[key];
+  const rows = DB.BudgetEntries.filter(b =>
+    b.ProjectID === st.projectId && (!st.shopId || b.ShopID === st.shopId) && (!st.expHeadId || b.ExpHeadID === st.expHeadId));
+  const out = reportOut(key);
+  if (rows.length === 0) { out.innerHTML = '<div class="card"><div class="empty-state"><i class="fa-solid fa-scale-balanced"></i>No budget lines match the selected filters.</div></div>'; return; }
+
+  const data = rows.map(b => {
+    const acts = DB.ActualExpenses.filter(e => e.BudgetID === b.BudgetID);
+    const actAmt = sumField(acts, 'TotalAmount');
+    const actQty = sumField(acts, 'Quantity');
+    const util = Number(b.TotalAmount) > 0 ? actAmt / Number(b.TotalAmount) * 100 : 0;
+    return { b, actAmt, actQty, util, variance: round2(Number(b.TotalAmount) - actAmt) };
+  });
+  const tb = sumField(rows, 'TotalAmount'), ta = round2(data.reduce((t, d) => t + d.actAmt, 0));
+
+  out.innerHTML =
+    '<div class="card"><h3 style="margin-bottom:8px">Project: ' + esc(st.projectId) + ' — ' + esc(projectName(st.projectId)) + '</h3>' + utilLegendHTML() +
+    '<div class="table-wrap" style="box-shadow:none"><table class="data-table"><thead><tr>' +
+    '<th></th><th>Budget ID</th><th>Shop</th><th>Expense Head</th><th>Material</th><th class="num">Budget Qty</th><th class="num">Budget Amount</th>' +
+    '<th class="num">Actual Qty</th><th class="num">Actual Amount</th><th class="num">Variance</th><th>Utilization</th></tr></thead><tbody>' +
+    data.map(d =>
+      '<tr><td>' + utilStatusEmoji(d.util) + '</td><td><b>' + esc(d.b.BudgetID) + '</b></td><td>' + esc(shopName(d.b.ShopID)) + '</td>' +
+      '<td>' + esc(expHeadName(d.b.ExpHeadID)) + '</td><td>' + esc(materialName(d.b.MaterialID)) + '</td>' +
+      '<td class="num">' + fmtNum(d.b.Quantity) + ' ' + esc(unitAbbr(d.b.UnitID)) + '</td><td class="num">' + fmtMK(d.b.TotalAmount) + '</td>' +
+      '<td class="num">' + fmtNum(d.actQty) + '</td><td class="num">' + fmtMK(d.actAmt) + '</td>' + plCell(d.variance) + '<td>' + utilBarHTML(d.util) + '</td></tr>').join('') +
+    '</tbody><tfoot><tr><td colspan="6">TOTAL</td><td class="num">' + fmtMK(tb) + '</td><td></td><td class="num">' + fmtMK(ta) + '</td>' + plCell(tb - ta) +
+    '<td>' + utilBarHTML(tb > 0 ? ta / tb * 100 : 0) + '</td></tr></tfoot></table></div></div>' +
+    '<div class="chart-card"><h3><i class="fa-solid fa-chart-column"></i> Budget vs Actual by Expense Head</h3><div class="chart-wrap"><canvas id="rpt-bva-chart"></canvas></div></div>';
+
+  const byHead = {};
+  data.forEach(d => {
+    const n = expHeadName(d.b.ExpHeadID);
+    byHead[n] = byHead[n] || { b:0, a:0 };
+    byHead[n].b += Number(d.b.TotalAmount || 0);
+    byHead[n].a += d.actAmt;
+  });
+  makeChart('rptBVA', 'rpt-bva-chart', { type:'bar',
+    data:{ labels:Object.keys(byHead), datasets:[
+      { label:'Budget', data:Object.values(byHead).map(x => x.b), backgroundColor:'#3498db' },
+      { label:'Actual', data:Object.values(byHead).map(x => x.a), backgroundColor:'#e94560' } ] },
+    options:{ scales:{ y:{ ticks:{ callback: mkTick } } } } });
+
+  reportExport[key] = { name:'Budget_vs_Actual_' + st.projectId,
+    headers:['Budget ID','Shop','Expense Head','Material','Unit','Budget Qty','Budget Amount','Actual Qty','Actual Amount','Variance','Utilization %'],
+    rows:data.map(d => [d.b.BudgetID, shopName(d.b.ShopID), expHeadName(d.b.ExpHeadID), materialName(d.b.MaterialID), unitAbbr(d.b.UnitID),
+      d.b.Quantity, d.b.TotalAmount, d.actQty, d.actAmt, d.variance, d.util.toFixed(1)]) };
+}
+
+// ---- 2. Project Profitability ----
+function genProfitability(key){
+  if (!requireFilters(key)) return;
+  const st = reportState[key];
+  const pid = st.projectId;
+  const contracts = DB.Contracts.filter(c => c.ProjectID === pid && c.Status !== 'Cancelled');
+  const expenses = DB.ActualExpenses.filter(e => e.ProjectID === pid);
+  const budgets = DB.BudgetEntries.filter(b => b.ProjectID === pid);
+  const contractRev = sumField(contracts.filter(c => c.ContractType !== 'Sales Invoice'), 'ContractValue');
+  const invoiceRev = sumField(contracts.filter(c => c.ContractType === 'Sales Invoice'), 'ContractValue');
+  const totalIncome = round2(contractRev + invoiceRev);
+  const cats = ['Material','Labour','Equipment','Subcontract','Overhead','Other'];
+  const byCat = {};
+  cats.forEach(c => byCat[c] = 0);
+  expenses.forEach(e => {
+    const h = findRec('ExpenseHeads', 'ExpHeadID', e.ExpHeadID);
+    const c = h && cats.includes(h.Category) ? h.Category : 'Other';
+    byCat[c] += Number(e.TotalAmount || 0);
+  });
+  const totalExp = sumField(expenses, 'TotalAmount');
+  const totalBudget = sumField(budgets, 'TotalAmount');
+  const gross = round2(totalIncome - totalExp);
+  const margin = totalIncome > 0 ? gross / totalIncome * 100 : 0;
+  const util = totalBudget > 0 ? totalExp / totalBudget * 100 : 0;
+
+  reportOut(key).innerHTML =
+    '<div class="charts-grid" style="grid-template-columns:1.1fr .9fr;align-items:start">' +
+    '<div class="pnl-box"><div class="pnl-head"><h3>PROJECT PROFITABILITY STATEMENT</h3><small>Project: ' + esc(pid) + ' — ' + esc(projectName(pid)) + '</small></div>' +
+      '<div class="pnl-section"><h4>A. Contract Income</h4>' +
+        '<div class="pnl-row"><span>Contract / LPO Revenue</span><span>' + fmtMK(contractRev) + '</span></div>' +
+        '<div class="pnl-row"><span>Sales Invoice Revenue</span><span>' + fmtMK(invoiceRev) + '</span></div>' +
+        '<div class="pnl-row total"><span>Total Income</span><span>' + fmtMK(totalIncome) + '</span></div></div>' +
+      '<div class="pnl-section"><h4>B. Actual Expenses</h4>' +
+        cats.map(c => '<div class="pnl-row"><span>' + c + '</span><span>' + fmtMK(byCat[c]) + '</span></div>').join('') +
+        '<div class="pnl-row total"><span>Total Expenses</span><span>' + fmtMK(totalExp) + '</span></div></div>' +
+      '<div class="pnl-section"><h4>C. Profit / (Loss)</h4>' +
+        '<div class="pnl-row grand"><span>Gross Profit</span><span class="' + (gross >= 0 ? 'pl-pos' : 'pl-neg') + '">' + fmtMK(gross) + '</span></div>' +
+        '<div class="pnl-row"><span>Profit Margin</span><span>' + fmtPct(margin) + '</span></div></div>' +
+      '<div class="pnl-section" style="border-bottom:none"><h4>D. Budget Status</h4>' +
+        '<div class="pnl-row"><span>Total Budget</span><span>' + fmtMK(totalBudget) + '</span></div>' +
+        '<div class="pnl-row"><span>Total Spent</span><span>' + fmtMK(totalExp) + '</span></div>' +
+        '<div class="pnl-row"><span>Budget Utilization</span><span>' + utilStatusEmoji(util) + ' ' + fmtPct(util) + '</span></div>' +
+        '<div class="pnl-row"><span>Budget Remaining</span><span class="' + (totalBudget - totalExp >= 0 ? 'pl-pos' : 'pl-neg') + '">' + fmtMK(totalBudget - totalExp) + '</span></div></div>' +
+    '</div>' +
+    '<div class="chart-card"><h3><i class="fa-solid fa-chart-pie"></i> Expense Split by Category</h3><div class="chart-wrap" style="height:320px"><canvas id="rpt-prof-chart"></canvas></div></div>' +
+    '</div>';
+
+  makeChart('rptProf', 'rpt-prof-chart', { type:'doughnut',
+    data:{ labels:cats, datasets:[{ data:cats.map(c => byCat[c]), backgroundColor:CHART_COLORS }] },
+    options:{ plugins:{ legend:{ position:'bottom', labels:{ boxWidth:12, font:{ size:11 } } } } } });
+
+  reportExport[key] = { name:'Project_Profitability_' + pid, headers:['Line','Amount (MK)'],
+    rows:[['Contract/LPO Revenue', contractRev], ['Sales Invoice Revenue', invoiceRev], ['Total Income', totalIncome]]
+      .concat(cats.map(c => [c + ' Expenses', byCat[c]]))
+      .concat([['Total Expenses', totalExp], ['Gross Profit', gross], ['Profit Margin %', margin.toFixed(2)],
+               ['Total Budget', totalBudget], ['Budget Utilization %', util.toFixed(2)], ['Budget Remaining', round2(totalBudget - totalExp)]]) };
+}
+
+// ---- 3. Item-wise ----
+function genItemWise(key){
+  const st = reportState[key];
+  const budgets = DB.BudgetEntries.filter(b => (!st.projectId || b.ProjectID === st.projectId) && (!st.materialId || b.MaterialID === st.materialId));
+  const expenses = DB.ActualExpenses.filter(e => (!st.projectId || e.ProjectID === st.projectId) && (!st.materialId || e.MaterialID === st.materialId));
+  const map = {};
+  budgets.forEach(b => { const m = map[b.MaterialID] = map[b.MaterialID] || { unit:b.UnitID, bq:0, ba:0, aq:0, aa:0 }; m.bq += Number(b.Quantity || 0); m.ba += Number(b.TotalAmount || 0); });
+  expenses.forEach(e => { const m = map[e.MaterialID] = map[e.MaterialID] || { unit:e.UnitID, bq:0, ba:0, aq:0, aa:0 }; m.aq += Number(e.Quantity || 0); m.aa += Number(e.TotalAmount || 0); });
+  const keys = Object.keys(map);
+  const out = reportOut(key);
+  if (keys.length === 0) { out.innerHTML = '<div class="card"><div class="empty-state"><i class="fa-solid fa-boxes-stacked"></i>No data matches the selected filters.</div></div>'; return; }
+  out.innerHTML =
+    '<div class="card">' + (st.projectId ? '<h3 style="margin-bottom:10px">Project: ' + esc(projectName(st.projectId)) + '</h3>' : '') +
+    '<div class="table-wrap" style="box-shadow:none"><table class="data-table"><thead><tr>' +
+    '<th>Material</th><th>Unit</th><th class="num">Budget Qty</th><th class="num">Budget Amount</th><th class="num">Actual Qty</th><th class="num">Actual Amount</th><th class="num">Qty Variance</th><th class="num">Amount Variance</th></tr></thead><tbody>' +
+    keys.map(k => { const m = map[k];
+      return '<tr><td><b>' + esc(materialName(k)) + '</b> <small style="color:var(--text-secondary)">' + esc(k) + '</small></td><td>' + esc(unitAbbr(m.unit)) + '</td>' +
+      '<td class="num">' + fmtNum(m.bq) + '</td><td class="num">' + fmtMK(m.ba) + '</td><td class="num">' + fmtNum(m.aq) + '</td><td class="num">' + fmtMK(m.aa) + '</td>' +
+      '<td class="num ' + (m.bq - m.aq >= 0 ? 'pl-pos' : 'pl-neg') + '">' + fmtNum(round2(m.bq - m.aq)) + '</td>' + plCell(m.ba - m.aa) + '</tr>'; }).join('') +
+    '</tbody><tfoot><tr><td colspan="3">TOTAL</td><td class="num">' + fmtMK(keys.reduce((t, k) => t + map[k].ba, 0)) + '</td><td></td>' +
+    '<td class="num">' + fmtMK(keys.reduce((t, k) => t + map[k].aa, 0)) + '</td><td></td>' + plCell(keys.reduce((t, k) => t + map[k].ba - map[k].aa, 0)) + '</tr></tfoot></table></div></div>' +
+    '<div class="chart-card"><h3><i class="fa-solid fa-chart-column"></i> Budget vs Actual by Material</h3><div class="chart-wrap"><canvas id="rpt-item-chart"></canvas></div></div>';
+  makeChart('rptItem', 'rpt-item-chart', { type:'bar',
+    data:{ labels:keys.map(materialName), datasets:[
+      { label:'Budget', data:keys.map(k => map[k].ba), backgroundColor:'#3498db' },
+      { label:'Actual', data:keys.map(k => map[k].aa), backgroundColor:'#e94560' } ] },
+    options:{ scales:{ y:{ ticks:{ callback: mkTick } } } } });
+  reportExport[key] = { name:'Item_wise_Report', headers:['Material ID','Material','Unit','Budget Qty','Budget Amount','Actual Qty','Actual Amount','Qty Variance','Amount Variance'],
+    rows:keys.map(k => { const m = map[k]; return [k, materialName(k), unitAbbr(m.unit), m.bq, m.ba, m.aq, m.aa, round2(m.bq - m.aq), round2(m.ba - m.aa)]; }) };
+}
+
+// ---- 4. Shop-wise ----
+function genShopWise(key){
+  const st = reportState[key];
+  const shops = DB.Shops.filter(s => !st.projectId || s.ProjectID === st.projectId);
+  const out = reportOut(key);
+  if (shops.length === 0) { out.innerHTML = '<div class="card"><div class="empty-state"><i class="fa-solid fa-shop"></i>No shops match the selected filters.</div></div>'; return; }
+  const data = shops.map(s => {
+    const b = sumField(DB.BudgetEntries.filter(x => x.ShopID === s.ShopID), 'TotalAmount');
+    const e = sumField(DB.ActualExpenses.filter(x => x.ShopID === s.ShopID), 'TotalAmount');
+    const c = sumField(DB.Contracts.filter(x => x.ShopID === s.ShopID && x.Status !== 'Cancelled'), 'ContractValue');
+    return { s, b, e, c, u: b > 0 ? e / b * 100 : 0, pl: round2(c - e) };
+  });
+  out.innerHTML =
+    '<div class="card">' + utilLegendHTML() +
+    '<div class="table-wrap" style="box-shadow:none"><table class="data-table"><thead><tr>' +
+    '<th></th><th>Shop</th><th>Project</th><th>Status</th><th class="num">Budget</th><th class="num">Expenses</th><th class="num">Contracts</th><th>Utilization</th><th class="num">Profit/Loss</th></tr></thead><tbody>' +
+    data.map(d =>
+      '<tr><td>' + utilStatusEmoji(d.u) + '</td><td><b>' + esc(d.s.ShopName) + '</b> <small style="color:var(--text-secondary)">' + esc(d.s.ShopID) + '</small></td>' +
+      '<td>' + esc(projectName(d.s.ProjectID)) + '</td><td>' + statusBadge(d.s.Status) + '</td>' +
+      '<td class="num">' + fmtMK(d.b) + '</td><td class="num">' + fmtMK(d.e) + '</td><td class="num">' + fmtMK(d.c) + '</td>' +
+      '<td>' + utilBarHTML(d.u) + '</td>' + plCell(d.pl) + '</tr>').join('') +
+    '</tbody><tfoot><tr><td colspan="4">TOTAL</td><td class="num">' + fmtMK(data.reduce((t, d) => t + d.b, 0)) + '</td>' +
+    '<td class="num">' + fmtMK(data.reduce((t, d) => t + d.e, 0)) + '</td><td class="num">' + fmtMK(data.reduce((t, d) => t + d.c, 0)) + '</td><td></td>' +
+    plCell(data.reduce((t, d) => t + d.pl, 0)) + '</tr></tfoot></table></div></div>' +
+    '<div class="chart-card"><h3><i class="fa-solid fa-chart-column"></i> Shop Budget vs Expenses</h3><div class="chart-wrap"><canvas id="rpt-shop-chart"></canvas></div></div>';
+  makeChart('rptShop', 'rpt-shop-chart', { type:'bar',
+    data:{ labels:data.map(d => d.s.ShopName), datasets:[
+      { label:'Budget', data:data.map(d => d.b), backgroundColor:'#3498db' },
+      { label:'Expenses', data:data.map(d => d.e), backgroundColor:'#e94560' },
+      { label:'Contracts', data:data.map(d => d.c), backgroundColor:'#27ae60' } ] },
+    options:{ scales:{ y:{ ticks:{ callback: mkTick } } } } });
+  reportExport[key] = { name:'Shop_wise_Report', headers:['Shop ID','Shop','Project','Status','Budget','Expenses','Contracts','Utilization %','Profit/Loss'],
+    rows:data.map(d => [d.s.ShopID, d.s.ShopName, projectName(d.s.ProjectID), d.s.Status, d.b, d.e, d.c, d.u.toFixed(1), d.pl]) };
+}
+
+// ---- 5. Project-wise summary ----
+function genProjectWise(key){
+  const out = reportOut(key);
+  if (DB.Projects.length === 0) { out.innerHTML = '<div class="card"><div class="empty-state"><i class="fa-solid fa-diagram-project"></i>No projects found.</div></div>'; return; }
+  const data = DB.Projects.map(p => {
+    const b = sumField(DB.BudgetEntries.filter(x => x.ProjectID === p.ProjectID), 'TotalAmount');
+    const e = sumField(DB.ActualExpenses.filter(x => x.ProjectID === p.ProjectID), 'TotalAmount');
+    const c = sumField(DB.Contracts.filter(x => x.ProjectID === p.ProjectID && x.Status !== 'Cancelled'), 'ContractValue');
+    return { p, b, e, c, u: b > 0 ? e / b * 100 : 0, pl: round2(c - e) };
+  });
+  out.innerHTML =
+    '<div class="card">' + utilLegendHTML() +
+    '<div class="table-wrap" style="box-shadow:none"><table class="data-table"><thead><tr>' +
+    '<th></th><th>Project</th><th>Client</th><th>Status</th><th class="num">Budget</th><th class="num">Contracts</th><th class="num">Expenses</th><th>Utilization</th><th class="num">Profit/Loss</th></tr></thead><tbody>' +
+    data.map(d =>
+      '<tr><td>' + utilStatusEmoji(d.u) + '</td><td><b>' + esc(d.p.ProjectName) + '</b> <small style="color:var(--text-secondary)">' + esc(d.p.ProjectID) + '</small></td>' +
+      '<td>' + esc(customerName(d.p.ClientName)) + '</td><td>' + statusBadge(d.p.Status) + '</td>' +
+      '<td class="num">' + fmtMK(d.b) + '</td><td class="num">' + fmtMK(d.c) + '</td><td class="num">' + fmtMK(d.e) + '</td>' +
+      '<td>' + utilBarHTML(d.u) + '</td>' + plCell(d.pl) + '</tr>').join('') +
+    '</tbody><tfoot><tr><td colspan="4">TOTAL</td><td class="num">' + fmtMK(data.reduce((t, d) => t + d.b, 0)) + '</td>' +
+    '<td class="num">' + fmtMK(data.reduce((t, d) => t + d.c, 0)) + '</td><td class="num">' + fmtMK(data.reduce((t, d) => t + d.e, 0)) + '</td><td></td>' +
+    plCell(data.reduce((t, d) => t + d.pl, 0)) + '</tr></tfoot></table></div></div>' +
+    '<div class="chart-card"><h3><i class="fa-solid fa-chart-column"></i> Budget / Contracts / Expenses by Project</h3><div class="chart-wrap"><canvas id="rpt-projw-chart"></canvas></div></div>';
+  makeChart('rptProjW', 'rpt-projw-chart', { type:'bar',
+    data:{ labels:data.map(d => d.p.ProjectName), datasets:[
+      { label:'Budget', data:data.map(d => d.b), backgroundColor:'#3498db' },
+      { label:'Contracts', data:data.map(d => d.c), backgroundColor:'#27ae60' },
+      { label:'Expenses', data:data.map(d => d.e), backgroundColor:'#e94560' } ] },
+    options:{ scales:{ y:{ ticks:{ callback: mkTick } } } } });
+  reportExport[key] = { name:'Project_wise_Report', headers:['Project ID','Project','Client','Status','Budget','Contracts','Expenses','Utilization %','Profit/Loss'],
+    rows:data.map(d => [d.p.ProjectID, d.p.ProjectName, customerName(d.p.ClientName), d.p.Status, d.b, d.c, d.e, d.u.toFixed(1), d.pl]) };
+}
+
+// ---- 6. P&L Statement ----
+function genPnL(key){
+  const st = reportState[key];
+  const from = st.dateFrom ? new Date(st.dateFrom) : null;
+  const to = st.dateTo ? new Date(st.dateTo + 'T23:59:59') : null;
+  const inRange = d => { const dt = new Date(d); if (isNaN(dt)) return false; if (from && dt < from) return false; if (to && dt > to) return false; return true; };
+  const filterDates = !!(from || to);
+  const contracts = DB.Contracts.filter(c => (!st.projectId || c.ProjectID === st.projectId) && c.Status !== 'Cancelled' && (!filterDates || inRange(c.ContractDate)));
+  const expenses = DB.ActualExpenses.filter(e => (!st.projectId || e.ProjectID === st.projectId) && (!filterDates || inRange(e.ExpenseDate)));
+  const inc = {
+    'Contract Revenue': sumField(contracts.filter(c => c.ContractType === 'Contract'), 'ContractValue'),
+    'LPO Revenue': sumField(contracts.filter(c => c.ContractType === 'LPO'), 'ContractValue'),
+    'Sales Invoice Revenue': sumField(contracts.filter(c => c.ContractType === 'Sales Invoice'), 'ContractValue')
+  };
+  const totalIncome = round2(Object.values(inc).reduce((a, b) => a + b, 0));
+  const cats = ['Material','Labour','Equipment','Subcontract','Overhead','Other'];
+  const byCat = {}; cats.forEach(c => byCat[c] = 0);
+  expenses.forEach(e => {
+    const h = findRec('ExpenseHeads', 'ExpHeadID', e.ExpHeadID);
+    byCat[h && cats.includes(h.Category) ? h.Category : 'Other'] += Number(e.TotalAmount || 0);
+  });
+  const totalExp = sumField(expenses, 'TotalAmount');
+  const net = round2(totalIncome - totalExp);
+  const scope = (st.projectId ? projectName(st.projectId) : 'All Projects') +
+    (filterDates ? ' · ' + (st.dateFrom ? fmtDate(st.dateFrom) : 'Beginning') + ' → ' + (st.dateTo ? fmtDate(st.dateTo) : 'Today') : ' · All Time');
+  reportOut(key).innerHTML =
+    '<div class="pnl-box"><div class="pnl-head"><h3>PROFIT &amp; LOSS STATEMENT</h3><small>Nexora Limited · ' + esc(scope) + '</small></div>' +
+    '<div class="pnl-section"><h4>Income</h4>' +
+      Object.keys(inc).map(k => '<div class="pnl-row"><span>' + k + '</span><span>' + fmtMK(inc[k]) + '</span></div>').join('') +
+      '<div class="pnl-row total"><span>Total Income</span><span>' + fmtMK(totalIncome) + '</span></div></div>' +
+    '<div class="pnl-section"><h4>Expenses</h4>' +
+      cats.map(c => '<div class="pnl-row"><span>' + c + '</span><span>' + fmtMK(byCat[c]) + '</span></div>').join('') +
+      '<div class="pnl-row total"><span>Total Expenses</span><span>' + fmtMK(totalExp) + '</span></div></div>' +
+    '<div class="pnl-section" style="border-bottom:none">' +
+      '<div class="pnl-row grand"><span>NET PROFIT / (LOSS)</span><span class="' + (net >= 0 ? 'pl-pos' : 'pl-neg') + '">' + fmtMK(net) + '</span></div>' +
+      '<div class="pnl-row"><span>Net Margin</span><span>' + fmtPct(totalIncome > 0 ? net / totalIncome * 100 : 0) + '</span></div></div></div>' +
+    '<div class="chart-card" style="margin-top:16px"><h3><i class="fa-solid fa-chart-column"></i> Income vs Expenses</h3><div class="chart-wrap"><canvas id="rpt-pnl-chart"></canvas></div></div>';
+  makeChart('rptPnl', 'rpt-pnl-chart', { type:'bar',
+    data:{ labels:['Income','Expenses','Net'], datasets:[{ label:'MK', data:[totalIncome, totalExp, net],
+      backgroundColor:['#27ae60','#e94560', net >= 0 ? '#3498db' : '#e74c3c'] }] },
+    options:{ plugins:{ legend:{ display:false } }, scales:{ y:{ ticks:{ callback: mkTick } } } } });
+  reportExport[key] = { name:'PnL_Statement', headers:['Line','Amount (MK)'],
+    rows:Object.keys(inc).map(k => [k, inc[k]]).concat([['Total Income', totalIncome]])
+      .concat(cats.map(c => [c + ' Expenses', byCat[c]])).concat([['Total Expenses', totalExp], ['Net Profit/(Loss)', net]]) };
+}
+
+// ---- 7. Supplier-wise ----
+function genSupplierWise(key){
+  const st = reportState[key];
+  const from = st.dateFrom ? new Date(st.dateFrom) : null;
+  const to = st.dateTo ? new Date(st.dateTo + 'T23:59:59') : null;
+  const rows = DB.ActualExpenses.filter(e => {
+    if (st.projectId && e.ProjectID !== st.projectId) return false;
+    if (st.supplierId && e.SupplierID !== st.supplierId) return false;
+    const d = new Date(e.ExpenseDate);
+    if (from && (isNaN(d) || d < from)) return false;
+    if (to && (isNaN(d) || d > to)) return false;
+    return true;
+  });
+  const out = reportOut(key);
+  if (rows.length === 0) { out.innerHTML = '<div class="card"><div class="empty-state"><i class="fa-solid fa-truck"></i>No expenses match the selected filters.</div></div>'; return; }
+  const map = {};
+  rows.forEach(e => { const s = map[e.SupplierID] = map[e.SupplierID] || { n:0, amt:0 }; s.n += 1; s.amt += Number(e.TotalAmount || 0); });
+  const keys = Object.keys(map).sort((a, b) => map[b].amt - map[a].amt);
+  out.innerHTML =
+    '<div class="card"><h3 style="margin-bottom:10px">Supplier Summary</h3>' +
+    '<div class="table-wrap" style="box-shadow:none"><table class="data-table"><thead><tr>' +
+    '<th>Supplier</th><th class="num"># Entries</th><th class="num">Total Amount</th><th class="num">% of Total</th></tr></thead><tbody>' +
+    keys.map(k => '<tr><td><b>' + esc(supplierName(k)) + '</b> <small style="color:var(--text-secondary)">' + esc(k) + '</small></td>' +
+      '<td class="num">' + map[k].n + '</td><td class="num">' + fmtMK(map[k].amt) + '</td>' +
+      '<td class="num">' + fmtPct(map[k].amt / sumField(rows, 'TotalAmount') * 100) + '</td></tr>').join('') +
+    '</tbody><tfoot><tr><td>TOTAL</td><td class="num">' + rows.length + '</td><td class="num">' + fmtMK(sumField(rows, 'TotalAmount')) + '</td><td class="num">100%</td></tr></tfoot></table></div></div>' +
+    '<div class="chart-card"><h3><i class="fa-solid fa-chart-pie"></i> Spend by Supplier</h3><div class="chart-wrap"><canvas id="rpt-sup-chart"></canvas></div></div>' +
+    '<div class="card" style="margin-top:16px"><h3 style="margin-bottom:10px">Expense Details</h3>' +
+    '<div class="table-wrap" style="box-shadow:none"><table class="data-table"><thead><tr>' +
+    '<th>ID</th><th>Date</th><th>Supplier</th><th>Project</th><th>Material</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th><th>Invoice</th><th>Status</th></tr></thead><tbody>' +
+    rows.map(e => '<tr><td>' + esc(e.ExpenseID) + '</td><td>' + fmtDate(e.ExpenseDate) + '</td><td>' + esc(supplierName(e.SupplierID)) + '</td>' +
+      '<td>' + esc(projectName(e.ProjectID)) + '</td><td>' + esc(materialName(e.MaterialID)) + '</td><td class="num">' + fmtNum(e.Quantity) + '</td>' +
+      '<td class="num">' + fmtNum(e.UnitRate) + '</td><td class="num">' + fmtMK(e.TotalAmount) + '</td><td>' + esc(e.InvoiceRef || '—') + '</td><td>' + statusBadge(e.Status) + '</td></tr>').join('') +
+    '</tbody></table></div></div>';
+  makeChart('rptSup', 'rpt-sup-chart', { type:'doughnut',
+    data:{ labels:keys.map(supplierName), datasets:[{ data:keys.map(k => map[k].amt), backgroundColor:CHART_COLORS }] },
+    options:{ plugins:{ legend:{ position:'right', labels:{ boxWidth:12, font:{ size:10.5 } } } } } });
+  reportExport[key] = { name:'Supplier_wise_Report', headers:['Expense ID','Date','Supplier','Project','Material','Qty','Rate','Amount','Invoice Ref','Status'],
+    rows:rows.map(e => [e.ExpenseID, fmtDate(e.ExpenseDate), supplierName(e.SupplierID), projectName(e.ProjectID), materialName(e.MaterialID), e.Quantity, e.UnitRate, e.TotalAmount, e.InvoiceRef, e.Status]) };
+}
+
+const REPORT_GENERATORS = {
+  budgetVsActual: genBudgetVsActual, profitability: genProfitability, itemWise: genItemWise,
+  shopWise: genShopWise, projectWise: genProjectWise, pnl: genPnL, supplierWise: genSupplierWise
+};
+function generateReport(key){ REPORT_GENERATORS[key](key); }
+
+// ============ APP INITIALIZATION ============
+document.getElementById('btn-login').addEventListener('click', doLogin);
+document.getElementById('login-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+window.addEventListener('load', async () => {
+  if (!API_CONFIGURED) document.getElementById('login-config-note').style.display = 'block';
+  const session = loadSession();
+  if (session) {
+    document.getElementById('page-login').style.display = 'none';
+    await enterApp({ username: session.username, fullName: session.fullName, role: session.role });
+  }
+});
+</script>
+</body>
+</html>
