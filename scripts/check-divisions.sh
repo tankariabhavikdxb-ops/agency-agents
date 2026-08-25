@@ -29,7 +29,9 @@ JSON="divisions.json"
 # into the repo), not a source-agent category. strategy/ holds playbooks and
 # runbooks (no agent frontmatter), not agents. Neither is a division — they must
 # never be scanned as source-agent categories.
-NON_DIVISION_DIRS=(examples scripts integrations strategy)
+# tally-web-app/ is a standalone full-stack sample application (Node/Express +
+# Tally Prime XML/ODBC integration demo), not an agent catalog category.
+NON_DIVISION_DIRS=(examples scripts integrations strategy tally-web-app)
 
 errors=0
 fail() { echo "ERROR $*"; errors=$((errors + 1)); }
