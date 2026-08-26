@@ -31,7 +31,10 @@ JSON="divisions.json"
 # never be scanned as source-agent categories.
 # tally-web-app/ is a standalone full-stack sample application (Node/Express +
 # Tally Prime XML/ODBC integration demo), not an agent catalog category.
-NON_DIVISION_DIRS=(examples scripts integrations strategy tally-web-app)
+# tally-bridge/ is the Tally Prime 2.1 web frontend bridge (Python/Flask
+# middleware + browser frontend with live bidirectional sync), also a
+# standalone application rather than an agent catalog category.
+NON_DIVISION_DIRS=(examples scripts integrations strategy tally-web-app tally-bridge)
 
 errors=0
 fail() { echo "ERROR $*"; errors=$((errors + 1)); }
