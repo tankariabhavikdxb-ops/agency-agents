@@ -1,0 +1,217 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   THEME — CSS variables, light/dark themes, reset & base styles
+   Tally Bridge · Phase 2
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. CSS variables & theme ───────────────────────────────────────────── */
+:root {
+  /* typography */
+  --font-sans: "Segoe UI", -apple-system, BlinkMacSystemFont, "Inter",
+               Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", Consolas, Menlo, monospace;
+
+  /* brand + status palette */
+  --c-primary: #1a5fd0;
+  --c-primary-strong: #124aa8;
+  --c-primary-soft: #e8f0fe;
+  --c-primary-border: #bcd3f6;
+  --c-violet: #7a5af8;
+  --c-violet-soft: #f0ecfe;
+  --c-success: #0e8a58;
+  --c-success-soft: #e1f5eb;
+  --c-danger: #d5384f;
+  --c-danger-strong: #b32841;
+  --c-danger-soft: #fdeaec;
+  --c-warning: #b07708;
+  --c-warning-soft: #fdf3da;
+  --c-info: #1a76d2;
+  --c-info-soft: #e8f2fd;
+
+  /* surfaces & text (light theme) */
+  --bg: #edf1f7;
+  --bg-grad: radial-gradient(1100px 500px at 85% -10%, #dde7f5 0%, #edf1f7 55%);
+  --surface: #ffffff;
+  --surface-2: #f7f9fc;
+  --surface-3: #eef2f8;
+  --border: #dbe3ee;
+  --border-strong: #c2cee0;
+  --text: #17233b;
+  --text-muted: #5a6a85;
+  --text-faint: #8d9ab1;
+
+  /* sidebar (stays dark in both themes) */
+  --sidebar-bg: linear-gradient(180deg, #12213f 0%, #0d1830 100%);
+  --sidebar-border: rgba(255, 255, 255, .08);
+  --sidebar-text: #b9c7e2;
+  --sidebar-text-active: #ffffff;
+  --sidebar-active-bg: rgba(88, 138, 255, .18);
+  --sidebar-hover-bg: rgba(255, 255, 255, .06);
+
+  /* shape & depth */
+  --radius: 10px;
+  --radius-sm: 8px;
+  --radius-lg: 14px;
+  --shadow-sm: 0 1px 2px rgba(23, 35, 59, .06);
+  --shadow-md: 0 4px 14px rgba(23, 35, 59, .08);
+  --shadow-lg: 0 18px 50px rgba(13, 24, 48, .28);
+
+  /* metrics */
+  --control-h: 38px;
+  --control-h-sm: 32px;
+  --topbar-h: 62px;
+  --sidebar-w: 236px;
+  --content-pad: 26px;
+
+  /* motion */
+  --dur: .16s;
+  --ease: cubic-bezier(.4, 0, .2, 1);
+
+  /* focus */
+  --focus-ring: 0 0 0 3px rgba(26, 95, 208, .22);
+}
+
+/* dark theme */
+[data-theme="dark"] {
+  --c-primary: #5b8dff;
+  --c-primary-strong: #7ba2ff;
+  --c-primary-soft: rgba(91, 141, 255, .14);
+  --c-primary-border: #2c4470;
+  --c-violet: #a58bff;
+  --c-violet-soft: rgba(165, 139, 255, .14);
+  --c-success: #35c98c;
+  --c-success-soft: rgba(53, 201, 140, .13);
+  --c-danger: #ff6577;
+  --c-danger-strong: #ff8391;
+  --c-danger-soft: rgba(255, 101, 119, .12);
+  --c-warning: #f0b03e;
+  --c-warning-soft: rgba(240, 176, 62, .13);
+  --c-info: #62aaf5;
+  --c-info-soft: rgba(98, 170, 245, .13);
+
+  --bg: #0b1220;
+  --bg-grad: radial-gradient(1100px 500px at 85% -10%, #101c36 0%, #0b1220 55%);
+  --surface: #121c31;
+  --surface-2: #17223a;
+  --surface-3: #1d2a45;
+  --border: #26334f;
+  --border-strong: #3a4a6d;
+  --text: #e7edf8;
+  --text-muted: #93a3c0;
+  --text-faint: #677693;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .35);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, .4);
+  --shadow-lg: 0 18px 50px rgba(0, 0, 0, .6);
+  --focus-ring: 0 0 0 3px rgba(91, 141, 255, .3);
+}
+
+
+/* ── 2. Reset & base styles ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+* { margin: 0; }
+
+html { font-size: 15px; -webkit-text-size-adjust: 100%; }
+
+body {
+  font-family: var(--font-sans);
+  font-size: .95rem;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg-grad), var(--bg);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+img, svg { display: block; }
+
+input, button, textarea, select { font: inherit; color: inherit; }
+
+button { cursor: pointer; background: none; border: 0; padding: 0; }
+
+a { color: var(--c-primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+h1, h2, h3, h4, h5 { line-height: 1.25; font-weight: 700; }
+
+p { margin: 0; }
+
+table { border-collapse: collapse; width: 100%; }
+
+kbd {
+  font-family: var(--font-mono);
+  font-size: .72rem;
+  background: var(--surface-3);
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: 1px 6px;
+  color: var(--text-muted);
+}
+
+::selection { background: rgba(26, 95, 208, .25); }
+
+:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: 6px; }
+
+/* scrollbars */
+* { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+/* helpers */
+[hidden] { display: none !important; }
+.mono { font-family: var(--font-mono); }
+.muted { color: var(--text-muted); }
+.faint { color: var(--text-faint); }
+.small { font-size: .82rem; }
+.pos { color: var(--c-success); }
+.neg { color: var(--c-danger); }
+.nowrap { white-space: nowrap; }
+.mt-1 { margin-top: 6px; } .mt-2 { margin-top: 12px; } .mt-3 { margin-top: 20px; }
+.mb-1 { margin-bottom: 6px; } .mb-2 { margin-bottom: 12px; } .mb-3 { margin-bottom: 20px; }
+.flex { display: flex; align-items: center; gap: 10px; }
+.flex-between { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.grow { flex: 1; }
+
+/* icon sizing (sprite is stroke-based, inherits currentColor) */
+.ic {
+  width: 18px; height: 18px; flex: none;
+  fill: none; stroke: currentColor;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+.ic-sm { width: 14px; height: 14px; }
+.ic-lg { width: 26px; height: 26px; }
+
+/* spinners */
+.spinner {
+  width: 18px; height: 18px; flex: none;
+  border: 2.5px solid var(--border);
+  border-top-color: var(--c-primary);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+.spinner-lg { width: 30px; height: 30px; border-width: 3px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* skeleton shimmer */
+.skel {
+  background: linear-gradient(90deg, var(--surface-3) 25%, var(--surface-2) 50%, var(--surface-3) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.3s linear infinite;
+  border-radius: 6px;
+}
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
+}

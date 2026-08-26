@@ -1756,6 +1756,33 @@ def test_connection():
     return jsonify(results)
 
 
+@app.route('/api/connection/configure', methods=['POST'])
+def api_connection_configure():
+    """
+    Point the bridge at a different Tally endpoint at runtime (used by the
+    company setup screen). Rolls back if the new endpoint is unreachable.
+    """
+    data = request.get_json(silent=True) or {}
+    host = str(data.get('host') or '').strip()
+    try:
+        port = int(data.get('port'))
+    except (TypeError, ValueError):
+        raise APIError('A valid port is required')
+    if not host or not (1 <= port <= 65535):
+        raise APIError('host and a valid port (1-65535) are required')
+
+    old = (Config.TALLY_HOST, Config.TALLY_PORT, Config.TALLY_URL)
+    Config.TALLY_HOST, Config.TALLY_PORT = host, port
+    Config.TALLY_URL = f'http://{host}:{port}'
+    try:
+        companies = tally_client.get_company_list()
+        return jsonify({'success': True, 'tally_url': Config.TALLY_URL,
+                        'tally_connected': True, 'companies': companies})
+    except Exception as exc:
+        Config.TALLY_HOST, Config.TALLY_PORT, Config.TALLY_URL = old
+        raise APIError(f'Cannot reach Tally at {host}:{port} - {exc}', 502)
+
+
 # ============================================================================
 # API ROUTES - Company Management
 # ============================================================================
@@ -2037,6 +2064,27 @@ def api_vouchers(company_name):
             Config.MAX_RECORDS_PER_BATCH * 100)   # cache the full result
         data, _cached = cached_or_fetch(cache_key, fetch, company)
 
+        remote_id = request.args.get('remote_id')
+        if remote_id:
+            # Deep-link lookup for one voucher: try the current window first,
+            # then fall back to a wide range (whole books).
+            match = [v for v in data['vouchers']
+                     if v.get('remote_id') == remote_id]
+            if not match and not (from_date or to_date):
+                wide_key = f"{company}:vouchers:{voucher_type or 'all'}:wide"
+                wide_fetch = lambda: tally_client.get_vouchers(  # noqa: E731
+                    company, voucher_type, '19900401', '21001231', 1,
+                    Config.MAX_RECORDS_PER_BATCH * 100)
+                wide_data, _w = cached_or_fetch(wide_key, wide_fetch, company)
+                match = [v for v in wide_data['vouchers']
+                         if v.get('remote_id') == remote_id]
+            return jsonify({'success': True, 'data': {
+                'vouchers': match, 'total': len(match), 'page': 1,
+                'page_size': len(match), 'total_pages': 1,
+                'from_date': data.get('from_date'),
+                'to_date': data.get('to_date'),
+            }})
+
         # paginate from the cached full list
         page = max(1, page)
         page_size = max(1, min(page_size, Config.MAX_RECORDS_PER_BATCH))
@@ -2227,7 +2275,7 @@ def handle_refresh_request(data):
 # ============================================================================
 BANNER = r"""
 ============================================================
-   TALLY PRIME 2.1 - FRONTEND BRIDGE  |  Phase 1  v1.0
+   TALLY PRIME 2.1 - FRONTEND BRIDGE  |  v2.0
 ============================================================
    Tally XML API : {tally_url}
    ODBC          : {odbc}

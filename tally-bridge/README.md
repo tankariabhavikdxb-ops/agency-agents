@@ -1,7 +1,7 @@
-# Tally Bridge — Tally Prime 2.1 Frontend Middleware (Phase 1)
+# Tally Bridge — Tally Prime 2.1 Web Frontend (Phases 1 + 2)
 
-A Python middleware that bridges a browser frontend with **Tally Prime 2.1** running
-on your local PC or LAN. It talks to Tally over both transports:
+A full web frontend + Python middleware for **Tally Prime 2.1** running on your
+local PC or LAN. It talks to Tally over both transports:
 
 | Transport | Direction | Default | Used for |
 |---|---|---|---|
@@ -14,8 +14,10 @@ Browser (frontend) ⇄ HTTP/WebSocket ⇄ server.py (Flask + SyncEngine)
                                             └─ ODBC    → Tally Prime 2.1 :9000
 ```
 
-Phase 1 delivers the complete middleware + a diagnostic console at `/`.
-Phase 2 (next) builds the full Tally-style frontend on top of this API.
+- **Phase 1** — the middleware: REST API, bidirectional sync engine, hardening.
+- **Phase 2** — the frontend application: a complete Tally-style UI
+  (splash → company setup → dashboard, day book, voucher entry with double-entry
+  validation, masters with CRUD, reports, configuration, light/dark theme).
 
 ---
 
@@ -27,8 +29,10 @@ py -3 -m pip install -r requirements.txt
 py -3 server.py
 ```
 
-Then open **http://127.0.0.1:5000** — you should see the console, your open
-companies, and live sync.
+Then open **http://127.0.0.1:5000** — the app boots through a splash screen,
+lets you pick an open company (with live connection testing), and drops you on
+the dashboard. The first screen also lets you point the bridge at another
+Tally host/port (LAN) without editing files.
 
 Checklist if the XML API shows *down*:
 
@@ -155,6 +159,59 @@ Empty `voucher_number` → Tally auto-numbers.
 
 ---
 
+## The frontend (Phase 2)
+
+Open `http://127.0.0.1:5000` — no build step, no CDN, works offline.
+
+**Flow:** splash screen (connection checklist) → company setup (connection
+status, host/port test + apply, company cards) → main application.
+
+**Pages**
+
+| Route | What it does |
+|---|---|
+| `#/dashboard` | stat cards (ledgers, vouchers FY/today, TB total), recent vouchers, top parties |
+| `#/daybook` | Day Book for any date, type filter, day total, voucher view/alter/delete |
+| `#/vouchers` | Voucher Register: date-range + type filters, pagination, CSV export |
+| `#/voucher/new` · `#/voucher/edit/:id` | double-entry voucher form (see below) |
+| `#/ledgers` · `#/ledgers/:name` | ledger list with search/group filter + CRUD modal; drill-down shows ledger details and all its vouchers |
+| `#/groups` | account groups with parent-chain indentation |
+| `#/stock-items` | stock item list + CRUD modal |
+| `#/masters/*` | units, godowns, stock groups, cost centres/categories, currencies, voucher types |
+| `#/reports/trial-balance` | computed TB with totals, difference badge, CSV, row drill-down |
+| `#/reports/balance-sheet` · `#/reports/profit-loss` | rendered from Tally's native report export |
+| `#/config` | connection (host/port apply), theme, sync monitor, F11-style company features, about |
+
+**Voucher entry** — Tally-style: type / date / number (blank = auto) / reference /
+party, ledger lines with type-ahead (datalist over live ledgers) and mutually
+exclusive Debit/Credit columns, live totals + "Balanced" badge, optional
+inventory lines (qty × rate = amount) for item voucher types, narration.
+Validated client-side (≥ 2 lines, Dr = Cr, no both-sides amounts) *and*
+server-side before import. `Ctrl+S` saves, `Alt+N` opens a new voucher,
+`Esc` closes dialogs. Edits/deletes round-trip via Tally REMOTEID.
+
+**Live sync in the UI:** every `data_changed` WebSocket event invalidates the
+caches, toasts, and re-renders the current page — but never wipes a voucher
+form you're editing.
+
+**Theming:** light (default, Tally-like) and dark, persisted in
+`localStorage`. The Socket.IO client is bundled at
+`frontend/assets/socket.io.min.js` (Flask-SocketIO does not serve it itself) so
+the app works fully offline.
+
+## Testing
+
+```bash
+# terminal 1 + 2: bridge against the mock
+python3 mock_tally.py
+TALLY_HOST=127.0.0.1 python3 server.py
+
+# terminal 3: headless integration test (79 assertions) — drives the real UI:
+# boot, setup, company select, every route, voucher create/alter/validation,
+# ledger CRUD with special characters, live-sync events, modals, theme
+cd tests && npm install && npm run smoke
+```
+
 ## How bidirectional sync works
 
 1. `SyncEngine` polls each selected company's **ALTER ID** — a single cheap
@@ -183,20 +240,29 @@ or narrations containing `&` round-trip safely. Text parsed back from Tally is
 
 ```
 tally-bridge/
-├── server.py            # the middleware (Flask + SocketIO + sync engine)
-├── mock_tally.py        # offline mock of Tally's XML API for development
+├── server.py                 # the middleware (Flask + SocketIO + sync engine)
+├── mock_tally.py             # offline mock of Tally's XML API for development
 ├── requirements.txt
-├── start.sh / start.bat # launchers
-└── frontend/index.html  # Phase-1 diagnostic console (Phase 2 replaces this)
+├── start.sh / start.bat      # launchers
+├── frontend/
+│   ├── index.html            # app shell: splash, setup, layout, templates, icon sprite
+│   ├── console.html          # Phase-1 diagnostics console (also linked from config)
+│   ├── assets/socket.io.min.js   # bundled Socket.IO client (offline-friendly)
+│   ├── css/  theme.css (variables+reset) · components.css · app.css
+│   └── js/   utils · api · app (state/router/toast/modal/ws) · voucher · pages · main
+└── tests/smoke.mjs           # headless jsdom integration test (npm run smoke)
 ```
 
 ## Roadmap
 
-- **Phase 1 (this)** — middleware: CRUD API, reports, sync engine, WebSocket
+- **Phase 1 (done)** — middleware: CRUD API, reports, sync engine, WebSocket
   push, hardening, mock server, diagnostic console.
-- **Phase 2** — full Tally-style frontend: gateway/company selector, day book,
-  voucher entry (all types), masters with trees, reports with drill-down,
-  dashboard.
+- **Phase 2 (done)** — full Tally-style frontend: company setup, dashboard,
+  day book, voucher register + entry/alter/delete, masters with CRUD,
+  reports with CSV export, configuration page, light/dark theme.
+- **Phase 3 (next)** — per the roadmap: printing, GST-ready invoice formats,
+  bill-wise details, cost-centre allocation, cheque details, user preference
+  persistence, packaging as a desktop app.
 
 ## Troubleshooting
 

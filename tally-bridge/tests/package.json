@@ -1,0 +1,12 @@
+{
+  "name": "tally-bridge-tests",
+  "private": true,
+  "description": "Headless integration test for the Tally Bridge frontend (jsdom + real bridge + mock Tally)",
+  "type": "module",
+  "scripts": {
+    "smoke": "node smoke.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^24.0.0"
+  }
+}

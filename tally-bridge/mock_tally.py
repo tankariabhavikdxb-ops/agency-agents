@@ -85,18 +85,21 @@ GODOWNS = [('Main Location', 'Primary')]
 VOUCHER_TYPES = [('Receipt',), ('Payment',), ('Contra',), ('Journal',),
                  ('Sales',), ('Purchase',), ('Credit Note',), ('Debit Note',)]
 
+# Current request filters (set by the handler before routing)
+_REQ = {'from': None, 'to': None, 'type': None, 'ledger': None}
+
 VOUCHERS = []
 _voucher_seed = [
     # (date, vchtype, no, party, debit_ledger, amount, credit_ledger, narr)
-    ('20250601', 'Sales', '1', 'Ramesh & Sons', 'Ramesh & Sons',
+    ('20260601', 'Sales', '1', 'Ramesh & Sons', 'Ramesh & Sons',
      11800.00, 'Sales Account', 'Invoice #INV-001, cash sale batch A'),
-    ('20250602', 'Payment', '1', 'Sharma Suppliers', 'Sharma Suppliers',
+    ('20260602', 'Payment', '1', 'Sharma Suppliers', 'Sharma Suppliers',
      5000.00, 'HDFC Bank', 'Part payment against bill #B-77'),
-    ('20250604', 'Receipt', '1', 'Ramesh & Sons', 'HDFC Bank',
+    ('20260604', 'Receipt', '1', 'Ramesh & Sons', 'HDFC Bank',
      11800.00, 'Ramesh & Sons', 'Full & final settlement INV-001'),
-    ('20250610', 'Journal', '1', '', 'Rent',
+    ('20260610', 'Journal', '1', '', 'Rent',
      12000.00, 'Sharma Suppliers', 'June rent booked, payable to owner'),
-    ('20250615', 'Sales', '2', 'Global Traders <Pune>', 'Global Traders <Pune>',
+    ('20260615', 'Sales', '2', 'Global Traders <Pune>', 'Global Traders <Pune>',
      24600.00, 'Sales Account', 'Invoice #INV-002 with special chars & <tags>'),
 ]
 for vd in _voucher_seed:
@@ -124,6 +127,12 @@ def esc(text):
     return (str(text)
             .replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
             .replace('"', '&quot;').replace("'", '&apos;'))
+
+
+def _unescape(text):
+    return (str(text)
+            .replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
+            .replace('&quot;', '"').replace('&apos;', "'"))
 
 
 def collection_response(inner_items):
@@ -207,8 +216,21 @@ def simple_list_xml(tag, rows):
 
 
 def vouchers_xml():
+    vouchers = VOUCHERS
+    if _REQ.get('from'):
+        vouchers = [v for v in vouchers if v['date'] >= _REQ['from']]
+    if _REQ.get('to'):
+        vouchers = [v for v in vouchers if v['date'] <= _REQ['to']]
+    if _REQ.get('type'):
+        vouchers = [v for v in vouchers
+                    if v['type'].lower() == _REQ['type'].lower()]
+    if _REQ.get('ledger'):
+        needles = _REQ['ledger'].lower()
+        vouchers = [v for v in vouchers
+                    if any(e['ledger'].lower() == needles
+                           for e in v['entries'])]
     items = []
-    for v in sorted(VOUCHERS, key=lambda x: x['date']):
+    for v in sorted(vouchers, key=lambda x: x['date']):
         entries = ''.join(
             f'<ALLLEDGERENTRIES.LIST>'
             f'<LEDGERNAME>{esc(e["ledger"])}</LEDGERNAME>'
@@ -438,6 +460,23 @@ class TallyHandler(BaseHTTPRequestHandler):
         request_type = (_text(root, 'HEADER/TALLYREQUEST')
                         or self._header_text(root, 'TALLYREQUEST'))
         request_id = self._header_text(root, 'ID')
+
+        # Extract export filters the bridge sends (dates / voucher type /
+        # ledger), so the mock behaves like real Tally.
+        _REQ['from'] = _REQ['to'] = _REQ['type'] = _REQ['ledger'] = None
+        raw = body.decode('utf-8', errors='replace')
+        m = re.search(r'<SVFROMDATE>(\d{8})<', raw)
+        if m:
+            _REQ['from'] = m.group(1)
+        m = re.search(r'<SVTODATE>(\d{8})<', raw)
+        if m:
+            _REQ['to'] = m.group(1)
+        m = re.search(r'\$VoucherTypeName\s*=\s*"([^"]+)"', raw)
+        if m:
+            _REQ['type'] = _unescape(m.group(1))
+        m = re.search(r'\$\$IsLedger:"([^"]+)"', raw)
+        if m:
+            _REQ['ledger'] = _unescape(m.group(1))
 
         if request_type == 'Import' or root.find('.//IMPORTDATA') is not None:
             created, altered, deleted, errors = handle_import(root)

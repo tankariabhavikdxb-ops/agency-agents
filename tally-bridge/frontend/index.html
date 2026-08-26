@@ -1,502 +1,226 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tally Bridge — Phase 1 Console</title>
-<style>
-  :root {
-    --bg: #0b1220; --bg2: #0f1830; --card: #131e38; --card2: #182647;
-    --line: #24345e; --text: #e6edf7; --muted: #8fa3c8; --dim: #5f7396;
-    --blue: #4f8cff; --blue2: #2f6ce0; --green: #2ecc8f; --red: #ff5f6e;
-    --amber: #ffb547; --violet: #9d7bff; --mono: ui-monospace, 'Cascadia Code',
-      Consolas, Menlo, monospace;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-    background: radial-gradient(1200px 600px at 80% -10%, #16244d 0%,
-                var(--bg) 55%);
-    color: var(--text); min-height: 100vh;
-  }
-  header {
-    display: flex; align-items: center; gap: 14px; padding: 18px 28px;
-    border-bottom: 1px solid var(--line);
-    background: rgba(11, 18, 32, .85); position: sticky; top: 0;
-    backdrop-filter: blur(8px); z-index: 10;
-  }
-  .logo {
-    width: 40px; height: 40px; border-radius: 10px; flex: none;
-    background: linear-gradient(135deg, var(--blue), var(--violet));
-    display: grid; place-items: center; font-weight: 800; font-size: 20px;
-    color: #fff; box-shadow: 0 4px 18px rgba(79, 140, 255, .45);
-  }
-  header h1 { font-size: 18px; font-weight: 700; letter-spacing: .2px; }
-  header .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
-  header .right { margin-left: auto; display: flex; gap: 10px; align-items: center; }
-  .pill {
-    font-size: 11px; font-weight: 600; padding: 5px 12px; border-radius: 999px;
-    border: 1px solid var(--line); color: var(--muted); background: var(--card);
-    display: inline-flex; align-items: center; gap: 7px;
-  }
-  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); }
-  .dot.ok { background: var(--green); box-shadow: 0 0 8px var(--green); }
-  .dot.err { background: var(--red); box-shadow: 0 0 8px var(--red); }
-  .dot.warn { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
-
-  main { max-width: 1280px; margin: 0 auto; padding: 26px 28px 60px; }
-
-  .grid { display: grid; gap: 16px; }
-  .cards3 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-  .split { grid-template-columns: 1.2fr .8fr; }
-  @media (max-width: 980px) { .split { grid-template-columns: 1fr; } }
-
-  .card {
-    background: linear-gradient(180deg, var(--card), var(--bg2));
-    border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px;
-  }
-  .card h2 {
-    font-size: 12px; text-transform: uppercase; letter-spacing: 1.4px;
-    color: var(--muted); margin-bottom: 14px; display: flex; gap: 8px;
-    align-items: center;
-  }
-  .status-card { display: flex; flex-direction: column; gap: 10px; }
-  .status-card .title { font-weight: 700; font-size: 15px; display: flex;
-    align-items: center; gap: 10px; }
-  .status-card .detail { font-size: 12px; color: var(--muted);
-    font-family: var(--mono); word-break: break-all; }
-
-  .stat { display: flex; justify-content: space-between; align-items: baseline;
-    padding: 9px 0; border-bottom: 1px dashed #1e2c52; font-size: 13px; }
-  .stat:last-child { border-bottom: 0; }
-  .stat b { font-size: 16px; font-family: var(--mono); }
-  .stat .lbl { color: var(--muted); }
-
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { text-align: left; color: var(--muted); font-weight: 600; font-size: 11px;
-    text-transform: uppercase; letter-spacing: .8px; padding: 8px 10px;
-    border-bottom: 1px solid var(--line); }
-  td { padding: 9px 10px; border-bottom: 1px solid #1a2749; }
-  tr:hover td { background: rgba(79, 140, 255, .06); }
-  .num { text-align: right; font-family: var(--mono); white-space: nowrap; }
-  .mono { font-family: var(--mono); font-size: 12px; }
-  .muted { color: var(--muted); } .dim { color: var(--dim); }
-  .pos { color: var(--green); } .neg { color: var(--red); }
-
-  button {
-    font: inherit; cursor: pointer; border-radius: 9px; border: 1px solid
-    var(--line); background: var(--card2); color: var(--text); padding: 8px 14px;
-    font-size: 13px; font-weight: 600; transition: .15s;
-  }
-  button:hover { border-color: var(--blue); background: #1c2c55; }
-  button.primary {
-    background: linear-gradient(135deg, var(--blue), var(--blue2));
-    border: 0; color: #fff; box-shadow: 0 4px 14px rgba(47, 108, 224, .4);
-  }
-  button:disabled { opacity: .45; cursor: not-allowed; }
-  input, select {
-    font: inherit; background: #0d1730; border: 1px solid var(--line);
-    color: var(--text); border-radius: 8px; padding: 8px 10px; font-size: 13px;
-    width: 100%;
-  }
-  input:focus, select:focus { outline: 2px solid rgba(79, 140, 255, .5); }
-
-  .company {
-    display: flex; align-items: center; gap: 12px; padding: 12px 14px;
-    border: 1px solid var(--line); border-radius: 12px; margin-bottom: 10px;
-    background: var(--card2); transition: .15s; cursor: pointer;
-  }
-  .company:hover { border-color: var(--blue); transform: translateY(-1px); }
-  .company.active {
-    border-color: var(--green);
-    box-shadow: 0 0 0 1px var(--green), 0 6px 18px rgba(46, 204, 143, .15);
-  }
-  .company .nm { font-weight: 700; font-size: 14px; }
-  .company .meta { font-size: 11px; color: var(--muted); margin-top: 3px; }
-  .company button { margin-left: auto; flex: none; }
-
-  #log {
-    font-family: var(--mono); font-size: 11.5px; background: #0a1122;
-    border: 1px solid var(--line); border-radius: 10px; padding: 12px;
-    height: 300px; overflow-y: auto; line-height: 1.7;
-  }
-  #log .t { color: var(--dim); }
-  #log .ok { color: var(--green); } #log .err { color: var(--red); }
-  #log .ev { color: var(--violet); }
-
-  .banner {
-    border: 1px solid rgba(255, 181, 71, .4); background:
-    rgba(255, 181, 71, .08); color: #ffd9a0; font-size: 13px; padding: 12px 16px;
-    border-radius: 12px; margin-bottom: 20px; line-height: 1.55;
-  }
-  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
-  .row > div { flex: 1; min-width: 120px; }
-  .row label { display: block; font-size: 11px; color: var(--muted);
-    margin-bottom: 5px; text-transform: uppercase; letter-spacing: .8px; }
-  .toolbar { display: flex; gap: 10px; margin: 14px 0; flex-wrap: wrap; }
-  .footer { text-align: center; color: var(--dim); font-size: 12px;
-    margin-top: 34px; }
-  .skel { color: var(--dim); font-size: 13px; padding: 18px 0; }
-  details summary { cursor: pointer; color: var(--muted); font-size: 12px;
-    padding: 6px 0; }
-  pre.api { font-family: var(--mono); font-size: 11px; color: var(--muted);
-    background: #0a1122; border: 1px solid var(--line); border-radius: 8px;
-    padding: 12px; overflow-x: auto; margin-top: 8px; line-height: 1.6; }
-</style>
+<title>Tally Bridge — Tally Prime 2.1 Web Frontend</title>
+<meta name="description" content="Web frontend for Tally Prime 2.1 with live bidirectional sync">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231a5fd0'/%3E%3Ctext x='32' y='44' font-family='Segoe UI,sans-serif' font-size='34' font-weight='800' fill='white' text-anchor='middle'%3ET%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/css/theme.css">
+<link rel="stylesheet" href="/css/components.css">
+<link rel="stylesheet" href="/css/app.css">
 </head>
 <body>
-
-<header>
-  <div class="logo">T</div>
-  <div>
-    <h1>Tally Prime 2.1 · Frontend Bridge</h1>
-    <div class="sub">Phase 1 — Middleware &amp; Sync Console</div>
+<noscript>
+  <div style="padding:40px;text-align:center;font-family:sans-serif">
+    Tally Bridge needs JavaScript enabled to run.
   </div>
-  <div class="right">
-    <span class="pill"><span class="dot" id="d-srv"></span>Bridge <span id="st-srv">…</span></span>
-    <span class="pill"><span class="dot" id="d-api"></span>XML API <span id="st-api">…</span></span>
-    <span class="pill"><span class="dot" id="d-odbc"></span>ODBC <span id="st-odbc">…</span></span>
-    <span class="pill"><span class="dot" id="d-sync"></span>Sync <span id="st-sync">…</span></span>
-  </div>
-</header>
+</noscript>
 
-<main>
-  <div class="banner" id="hint">
-    <b>Phase 1 console.</b> This page verifies the Python middleware end-to-end:
-    connection health, company discovery, live bidirectional sync and write
-    operations. The full Tally-style UI arrives in Phase 2.
-    <span id="hint-off" style="display:none"><br><b>Tally not reachable.</b>
-    Start Tally Prime 2.1 (with the API port enabled), or run
-    <code>python mock_tally.py</code> for an offline demo, then hit Refresh.</span>
-  </div>
+<!-- ══════════════════════ SVG ICON SPRITE ══════════════════════ -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <symbol id="i-dash" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></symbol>
+  <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><path d="M8 7h8M8 11h8M8 15h5"/></symbol>
+  <symbol id="i-file-plus" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 12v6M9 15h6"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></symbol>
+  <symbol id="i-build" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+  <symbol id="i-chev-d" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></symbol>
+  <symbol id="i-chev-l" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></symbol>
+  <symbol id="i-chev-r" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></symbol>
+  <symbol id="i-zap" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></symbol>
+  <symbol id="i-activity" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></symbol>
+  <symbol id="i-db" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></symbol>
+  <symbol id="i-external" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></symbol>
+  <symbol id="i-banknote" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></symbol>
+  <symbol id="i-arrow-r" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></symbol>
+</svg>
 
-  <div class="grid cards3" style="margin-bottom:16px">
-    <div class="card status-card">
-      <div class="title"><span class="dot" id="c-api-dot"></span>Tally XML API</div>
-      <div class="detail" id="c-api-detail">—</div>
-      <div class="detail muted" id="c-api-lag">—</div>
+<!-- ══════════════════════ 4/18. SPLASH / LOADING SCREEN ══════════════════════ -->
+<div id="splash" class="splash">
+  <div class="splash-inner">
+    <div class="splash-logo">T</div>
+    <div class="splash-name">Tally Bridge</div>
+    <div class="splash-tag">Web frontend for Tally Prime 2.1</div>
+    <div class="splash-steps" id="splash-steps">
+      <div class="splash-step" data-step="bridge"><span class="ss-ic"></span>Connecting to bridge</div>
+      <div class="splash-step" data-step="tally"><span class="ss-ic"></span>Contacting Tally Prime</div>
+      <div class="splash-step" data-step="companies"><span class="ss-ic"></span>Loading companies</div>
+      <div class="splash-step" data-step="workspace"><span class="ss-ic"></span>Preparing workspace</div>
     </div>
-    <div class="card status-card">
-      <div class="title"><span class="dot" id="c-odbc-dot"></span>Tally ODBC</div>
-      <div class="detail" id="c-odbc-detail">—</div>
-    </div>
-    <div class="card status-card">
-      <div class="title"><span class="dot" id="c-sync-dot"></span>Sync Engine</div>
-      <div class="detail" id="c-sync-detail">—</div>
-      <div class="detail muted" id="c-sync-companies">no company subscribed</div>
-    </div>
+    <div class="splash-bar"><i id="splash-fill"></i></div>
+    <div class="splash-foot" id="splash-foot">Starting…</div>
   </div>
+</div>
 
-  <div class="grid split" style="margin-bottom:16px">
-    <div class="card">
-      <h2>Open Companies</h2>
-      <div id="companies"><div class="skel">Loading companies…</div></div>
-      <div class="toolbar">
-        <button onclick="loadCompanies()">⟳ Refresh</button>
-        <button class="primary" id="btn-dash" disabled onclick="loadDashboard()">Show Dashboard</button>
+<!-- ══════════════════════ 5/19/30. COMPANY SETUP SCREEN ══════════════════════ -->
+<div id="setup" class="setup" hidden></div>
+
+<!-- ══════════════════════ 6/7. MAIN APPLICATION LAYOUT ══════════════════════ -->
+<div id="app" class="app" hidden>
+  <aside class="sidebar" id="sidebar">
+    <div class="side-logo">
+      <div class="side-logo-mark">T</div>
+      <div class="side-logo-text">
+        <b>Tally Bridge</b>
+        <span>Tally Prime 2.1</span>
       </div>
     </div>
-    <div class="card">
-      <h2>Live Activity (WebSocket)</h2>
-      <div id="log"></div>
-    </div>
-  </div>
 
-  <div class="card" id="dash-card" style="display:none; margin-bottom:16px">
-    <h2>Dashboard — <span id="dash-co" class="muted"></span></h2>
-    <div class="grid cards3" style="margin-bottom:14px">
-      <div>
-        <div class="stat"><span class="lbl">Ledgers</span><b id="d-ledgers">—</b></div>
-        <div class="stat"><span class="lbl">Stock Items</span><b id="d-items">—</b></div>
-      </div>
-      <div>
-        <div class="stat"><span class="lbl">Vouchers (FY)</span><b id="d-vch">—</b></div>
-        <div class="stat"><span class="lbl">Vouchers Today</span><b id="d-today">—</b></div>
-      </div>
-      <div>
-        <div class="stat"><span class="lbl">Trial Balance Total</span><b id="d-tb">—</b></div>
-        <div class="stat"><span class="lbl">Difference</span><b id="d-diff">—</b></div>
+    <div class="side-company" id="side-company">
+      <svg class="ic ic-sm"><use href="#i-build"/></svg>
+      <div class="side-company-text">
+        <b id="side-company-name">—</b>
+        <span id="side-company-fy">—</span>
       </div>
     </div>
-    <h2 style="margin-top:6px">Recent Vouchers</h2>
-    <div style="overflow-x:auto">
-      <table id="d-table">
-        <thead><tr><th>Date</th><th>Type</th><th>No</th><th>Party</th>
-        <th>Amount</th><th>Narration</th></tr></thead>
-        <tbody></tbody>
-      </table>
+
+    <nav class="nav" id="nav">
+      <div class="nav-section">Home</div>
+      <a class="nav-item" data-route="dashboard" href="#/dashboard">
+        <svg class="ic"><use href="#i-dash"/></svg><span>Dashboard</span>
+      </a>
+
+      <div class="nav-section">Transactions</div>
+      <a class="nav-item" data-route="daybook" href="#/daybook">
+        <svg class="ic"><use href="#i-book"/></svg><span>Day Book</span>
+      </a>
+      <a class="nav-item" data-route="vouchers" href="#/vouchers">
+        <svg class="ic"><use href="#i-receipt"/></svg><span>Voucher Register</span>
+      </a>
+      <a class="nav-item" data-route="voucher" href="#/voucher/new">
+        <svg class="ic"><use href="#i-file-plus"/></svg><span>New Voucher</span>
+      </a>
+
+      <div class="nav-section">Masters</div>
+      <a class="nav-item" data-route="ledgers" href="#/ledgers">
+        <svg class="ic"><use href="#i-users"/></svg><span>Ledgers</span>
+      </a>
+      <a class="nav-item" data-route="groups" href="#/groups">
+        <svg class="ic"><use href="#i-layers"/></svg><span>Groups</span>
+      </a>
+      <a class="nav-item" data-route="stock-items" href="#/stock-items">
+        <svg class="ic"><use href="#i-box"/></svg><span>Stock Items</span>
+      </a>
+      <a class="nav-item" data-route="masters" href="#/masters">
+        <svg class="ic"><use href="#i-grid"/></svg><span>More Masters</span>
+      </a>
+
+      <div class="nav-section">Reports</div>
+      <a class="nav-item" data-route="reports" href="#/reports/trial-balance">
+        <svg class="ic"><use href="#i-chart"/></svg><span>Trial Balance</span>
+      </a>
+      <a class="nav-item" data-route="reports" data-route2="balance-sheet" href="#/reports/balance-sheet">
+        <svg class="ic"><use href="#i-doc"/></svg><span>Balance Sheet</span>
+      </a>
+      <a class="nav-item" data-route="reports" data-route2="profit-loss" href="#/reports/profit-loss">
+        <svg class="ic"><use href="#i-trend"/></svg><span>Profit &amp; Loss</span>
+      </a>
+
+      <div class="nav-section">System</div>
+      <a class="nav-item" data-route="config" href="#/config">
+        <svg class="ic"><use href="#i-sliders"/></svg><span>Configuration</span>
+      </a>
+    </nav>
+
+    <div class="side-foot">
+      <div class="sync-pill" id="sync-pill" title="Live sync with Tally">
+        <span class="dot" id="sync-dot"></span><span id="sync-text">Sync</span>
+      </div>
+      <div class="side-version">v2.0 · Phase 2</div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-title">
+        <h1 id="page-title">Dashboard</h1>
+        <p id="page-sub"></p>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-primary btn-new-voucher" id="btn-new-voucher" title="New voucher (Alt+N)">
+          <svg class="ic ic-sm"><use href="#i-plus"/></svg> Voucher
+        </button>
+        <button class="iconbtn" id="btn-refresh" title="Refresh data (invalidates cache)">
+          <svg class="ic"><use href="#i-refresh"/></svg>
+        </button>
+        <button class="iconbtn" id="btn-theme" title="Toggle theme">
+          <svg class="ic" id="theme-ic-sun"><use href="#i-sun"/></svg>
+          <svg class="ic" id="theme-ic-moon" hidden><use href="#i-moon"/></svg>
+        </button>
+        <div class="dd" id="company-dd">
+          <button class="company-btn" id="company-btn">
+            <svg class="ic ic-sm"><use href="#i-build"/></svg>
+            <span id="company-btn-name">—</span>
+            <svg class="ic ic-sm"><use href="#i-chev-d"/></svg>
+          </button>
+          <div class="dd-menu" id="company-menu" hidden></div>
+        </div>
+      </div>
+    </header>
+    <main class="content" id="content"></main>
+  </div>
+</div>
+
+<!-- ══════════════════════ 14/21. TOAST NOTIFICATIONS ══════════════════════ -->
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<!-- modal instances mount here -->
+<div id="modal-root"></div>
+
+<!-- ══════════════════════ 22. MODAL TEMPLATE ══════════════════════ -->
+<template id="tpl-modal">
+  <div class="modal-overlay">
+    <div class="modal" role="dialog" aria-modal="true">
+      <header class="modal-head">
+        <h3 class="modal-title"></h3>
+        <button class="iconbtn modal-x" type="button" title="Close (Esc)">
+          <svg class="ic"><use href="#i-x"/></svg>
+        </button>
+      </header>
+      <div class="modal-body"></div>
+      <footer class="modal-foot"></footer>
     </div>
   </div>
+</template>
 
-  <div class="card">
-    <h2>Diagnostic Write — Journal Voucher (tests bidirectional sync)</h2>
-    <p class="muted" style="font-size:12px; margin-bottom:12px">
-      Creates a real voucher through the middleware. On the mock server this is
-      always safe; against live Tally it writes actual data — use a test company.
-      After saving, watch the Live Activity panel fire a sync event within a few
-      seconds.</p>
-    <div class="row">
-      <div><label>Date</label><input type="date" id="w-date"></div>
-      <div><label>Debit Ledger</label><input id="w-dr" value="Office Expenses"></div>
-      <div><label>Credit Ledger</label><input id="w-cr" value="Cash"></div>
-      <div><label>Amount</label><input id="w-amt" type="number" value="100" min="0.01" step="0.01"></div>
-      <div style="flex:2"><label>Narration</label><input id="w-narr" value="Bridge diagnostic entry"></div>
-      <div style="flex:none"><button class="primary" onclick="sendTestVoucher()">Save</button></div>
-    </div>
-    <details style="margin-top:14px">
-      <summary>REST API quick reference (for Phase 2 development)</summary>
-      <pre class="api">GET  /api/health                          system + connectivity status
-GET  /api/companies                       open companies in Tally
-POST /api/companies/{company}/select      subscribe to live sync
-GET  /api/{company}/ledgers|groups|stock-items|stock-groups|units|currencies
-GET  /api/{company}/cost-centres|cost-categories|godowns|voucher-types
-POST /api/{company}/ledgers               create ledger      {name, parent, ...}
-PUT  /api/{company}/ledgers/{name}        alter ledger
-DEL  /api/{company}/ledgers/{name}        delete ledger
-POST /api/{company}/stock-items           create stock item
-GET  /api/{company}/vouchers?type=&from_date=&to_date=&page=&page_size=
-POST /api/{company}/vouchers              create voucher {voucher_type, date,
-                                            ledger_entries:[{ledger_name,amount,is_debit}], narration}
-PUT  /api/{company}/vouchers/{remote_id}  alter voucher
-POST /api/{company}/vouchers/delete       delete {remote_id | voucher_number+voucher_type+date}
-GET  /api/{company}/day-book?date=
-GET  /api/{company}/ledger-vouchers/{ledger}
-GET  /api/{company}/reports/trial-balance|balance-sheet|profit-loss
-GET  /api/{company}/dashboard             aggregated home-screen stats
-GET  /api/sync/status                     sync engine internals
-WS   data_changed                         push event on any Tally-side change</pre>
-    </details>
+<!-- ══════════════════════ 16. EMPTY STATE TEMPLATE ══════════════════════ -->
+<template id="tpl-empty">
+  <div class="empty">
+    <div class="empty-ic"><svg class="ic ic-lg"><use href="#i-receipt"/></svg></div>
+    <h4 class="empty-title"></h4>
+    <p class="empty-text"></p>
+    <div class="empty-action"></div>
   </div>
+</template>
 
-  <div class="footer">
-    Tally Bridge v1.0 · Phase 1 (middleware) · Phase 2 adds the full Tally-style
-    frontend (masters, voucher entry, reports)
-  </div>
-</main>
-
-<script src="/socket.io/socket.io.js"></script>
-<script>
-'use strict';
-const $ = (id) => document.getElementById(id);
-let selectedCompany = null;
-let socket = null;
-
-function logLine(html, cls = '') {
-  const t = new Date().toLocaleTimeString();
-  const el = $('log');
-  el.insertAdjacentHTML('beforeend',
-    `<div class="${cls}"><span class="t">${t}</span> ${html}</div>`);
-  el.scrollTop = el.scrollHeight;
-}
-
-async function api(path, opts = {}) {
-  const res = await fetch(path, {
-    headers: { 'Content-Type': 'application/json' }, ...opts });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json.message || res.statusText);
-  return json;
-}
-
-function setDot(dotId, state) {
-  const d = $(dotId);
-  d.className = 'dot' + (state === 'ok' ? ' ok' :
-    state === 'err' ? ' err' : state === 'warn' ? ' warn' : '');
-}
-
-async function loadHealth() {
-  try {
-    const h = await api('/api/health');
-    setDot('d-srv', 'ok'); $('st-srv').textContent = 'up';
-    const apiOk = h.tally_xml_api === 'connected';
-    setDot('d-api', apiOk ? 'ok' : 'err');
-    $('st-api').textContent = apiOk ? 'up' : 'down';
-    const odbcState = h.tally_odbc === 'connected' ? 'ok' :
-      h.tally_odbc === 'not_installed' ? 'warn' : 'err';
-    setDot('d-odbc', odbcState);
-    $('st-odbc').textContent = h.tally_odbc === 'connected' ? 'up' :
-      h.tally_odbc === 'not_installed' ? 'n/a' : 'down';
-    const syncOk = h.sync_engine === 'running';
-    setDot('d-sync', syncOk ? 'ok' : 'err');
-    $('st-sync').textContent = syncOk ? 'on' : 'off';
-
-    $('c-api-detail').textContent = h.tally_url +
-      (apiOk ? '' : '  (unreachable)');
-    setDot('c-api-dot', apiOk ? 'ok' : 'err');
-    $('c-api-lag').textContent = 'checked ' + new Date(
-      h.timestamp).toLocaleTimeString();
-    $('c-odbc-detail').textContent = h.tally_odbc === 'connected' ?
-      'driver connected (fast read path active)' :
-      (h.odbc_detail || h.tally_odbc);
-    setDot('c-odbc-dot', odbcState === 'ok' ? 'ok' : odbcState);
-    $('c-sync-detail').textContent = 'engine ' + h.sync_engine +
-      ' · poll every ' + (h.sync_interval || '?') + 's';
-    setDot('c-sync-dot', syncOk ? 'ok' : 'err');
-    $('hint-off').style.display = apiOk ? 'none' : 'inline';
-    return h;
-  } catch (e) {
-    setDot('d-srv', 'err'); $('st-srv').textContent = 'down';
-    logLine('Bridge unreachable: ' + e.message, 'err');
-    return null;
-  }
-}
-
-async function loadSyncStatus() {
-  try {
-    const s = await api('/api/sync/status');
-    const companies = Object.entries(s.data.companies || {});
-    $('c-sync-companies').textContent = companies.length ?
-      companies.map(([n, c]) => `${n} (alter ${c.alter_id ?? '—'})`).join(', ')
-      : 'no company subscribed';
-  } catch (e) { /* bridge down */ }
-}
-
-async function loadCompanies() {
-  const box = $('companies');
-  box.innerHTML = '<div class="skel">Loading companies…</div>';
-  try {
-    const res = await api('/api/companies');
-    if (!res.data.length) {
-      box.innerHTML = '<div class="skel">No companies open in Tally.</div>';
-      return;
-    }
-    box.innerHTML = '';
-    res.data.forEach((c) => {
-      const div = document.createElement('div');
-      div.className = 'company' +
-        (c.name === selectedCompany ? ' active' : '');
-      div.innerHTML = `
-        <div><div class="nm">${esc(c.name)}</div>
-        <div class="meta">${esc(c.formal_name || '')}
-        ${c.books_from ? '· books from ' + fmtDate(c.books_from) : ''}</div></div>`;
-      const btn = document.createElement('button');
-      btn.textContent = c.name === selectedCompany ? '✓ Selected' : 'Select';
-      btn.onclick = async (ev) => { ev.stopPropagation(); await selectCompany(c.name); };
-      div.appendChild(btn);
-      div.onclick = () => selectCompany(c.name);
-      box.appendChild(div);
-    });
-  } catch (e) {
-    box.innerHTML = `<div class="skel">Could not load companies: ${esc(e.message)}
-      <br>Is Tally Prime running with a company open?</div>`;
-  }
-}
-
-async function selectCompany(name) {
-  selectedCompany = name;
-  logLine(`Selected company <b>${esc(name)}</b> — starting live sync`, 'ev');
-  try {
-    await api(`/api/companies/${encodeURIComponent(name)}/select`,
-      { method: 'POST' });
-    if (socket) socket.emit('subscribe_company', { company: name });
-  } catch (e) { logLine('Select failed: ' + esc(e.message), 'err'); }
-  loadCompanies();
-  loadDashboard();
-  loadSyncStatus();
-}
-
-async function loadDashboard() {
-  if (!selectedCompany) return;
-  $('dash-card').style.display = '';
-  $('dash-co').textContent = selectedCompany;
-  try {
-    const res = await api(`/api/${encodeURIComponent(selectedCompany)}/dashboard`);
-    const d = res.data;
-    $('d-ledgers').textContent = d.ledger_count;
-    $('d-items').textContent = d.stock_item_count;
-    $('d-vch').textContent = d.voucher_count_fy;
-    $('d-today').textContent = d.vouchers_today;
-    $('d-tb').textContent = fmtAmt(d.trial_balance_total);
-    $('d-diff').textContent = fmtAmt(d.difference);
-    $('d-diff').className = Math.abs(d.difference) < 0.01 ? 'pos' : 'neg';
-    const tbody = $('d-table').querySelector('tbody');
-    tbody.innerHTML = (d.recent_vouchers || []).map((v) => `
-      <tr><td class="mono">${fmtDate(v.date)}</td><td>${esc(v.voucher_type)}</td>
-      <td class="mono">${esc(v.voucher_number)}</td><td>${esc(v.party_ledger || '—')}</td>
-      <td class="num">${fmtAmt(v.amount)}</td>
-      <td class="muted">${esc(v.narration || '')}</td></tr>`).join('') ||
-      '<tr><td colspan="6" class="dim">No vouchers in the current FY.</td></tr>';
-  } catch (e) {
-    logLine('Dashboard failed: ' + esc(e.message), 'err');
-  }
-}
-
-async function sendTestVoucher() {
-  if (!selectedCompany) { alert('Select a company first.'); return; }
-  const payload = {
-    voucher_type: 'Journal',
-    date: $('w-date').value || new Date().toISOString().slice(0, 10),
-    narration: $('w-narr').value,
-    ledger_entries: [
-      { ledger_name: $('w-dr').value, amount: Number($('w-amt').value), is_debit: true },
-      { ledger_name: $('w-cr').value, amount: Number($('w-amt').value), is_debit: false },
-    ],
-  };
-  if (!payload.ledger_entries[0].ledger_name ||
-      !payload.ledger_entries[1].ledger_name ||
-      !(payload.ledger_entries[0].amount > 0)) {
-    alert('Fill both ledgers and a positive amount.'); return;
-  }
-  if (!confirm(`Save a ${payload.ledger_entries[0].amount} Journal voucher in
-"${selectedCompany}"?\n\n(Real write against Tally — safe on the mock server.)`)) return;
-
-  logLine(`POST voucher: Dr ${esc(payload.ledger_entries[0].ledger_name)} /
-    Cr ${esc(payload.ledger_entries[1].ledger_name)} —
-    ${payload.ledger_entries[0].amount}`, 'ev');
-  try {
-    const res = await api(`/api/${encodeURIComponent(selectedCompany)}/vouchers`,
-      { method: 'POST', body: JSON.stringify(payload) });
-    if (res.success) {
-      logLine(`Voucher saved ✔ (${res.message || 'created'}) — awaiting sync event…`, 'ok');
-      setTimeout(loadDashboard, 1200);
-    } else {
-      logLine('Tally rejected: ' + (res.errors || []).join('; '), 'err');
-    }
-  } catch (e) { logLine('Save failed: ' + esc(e.message), 'err'); }
-}
-
-function connectSocket() {
-  try { socket = io({ transports: ['polling', 'websocket'] }); }
-  catch (e) { logLine('Socket.IO client not available', 'err'); return; }
-  socket.on('connected', () => {
-    logLine('WebSocket connected', 'ok');
-    if (selectedCompany)
-      socket.emit('subscribe_company', { company: selectedCompany });
-  });
-  socket.on('data_changed', (ev) => {
-    logLine(`⚡ sync event: <b>${esc(ev.type)}</b> — ${esc(ev.company)}`, 'ev');
-    if (ev.type === 'data_changed') {
-      loadDashboard(); loadSyncStatus();
-    }
-  });
-  socket.on('disconnect', () => logLine('WebSocket disconnected', 'err'));
-}
-
-function esc(s) {
-  return String(s ?? '').replace(/[&<>"']/g,
-    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;',
-              "'": '&#39;' }[c]));
-}
-function fmtAmt(v) {
-  const n = Math.abs(parseFloat(String(v).replace(/[()]/g, '')));
-  if (isNaN(n)) return String(v ?? '—');
-  return (String(v).trim().startsWith('-') ? '-' : (parseFloat(v) < 0 ? '-' : '')) +
-    n.toLocaleString('en-IN', { minimumFractionDigits: 2 });
-}
-function fmtDate(d) {
-  const s = String(d || '');
-  if ( /^\d{8}$/.test(s)) return `${s.slice(6,8)}-${s.slice(4,6)}-${s.slice(0,4)}`;
-  return s;
-}
-
-// ---- boot ----
-$('w-date').value = new Date().toISOString().slice(0, 10);
-logLine('Console started — probing bridge…');
-loadHealth();
-loadCompanies();
-loadSyncStatus();
-connectSocket();
-setInterval(loadHealth, 10000);
-setInterval(loadSyncStatus, 10000);
-</script>
+<script src="/assets/socket.io.min.js" defer></script>
+<script src="/js/utils.js" defer></script>
+<script src="/js/api.js" defer></script>
+<script src="/js/app.js" defer></script>
+<script src="/js/voucher.js" defer></script>
+<script src="/js/pages.js" defer></script>
+<script src="/js/main.js" defer></script>
 </body>
 </html>
