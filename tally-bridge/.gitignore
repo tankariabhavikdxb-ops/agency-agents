@@ -1,0 +1,9 @@
+# virtual environment created by setup.bat / setup.sh
+venv/
+
+# local configuration (copy of .env.example)
+.env
+
+# runtime artifacts
+tally_bridge.log
+__pycache__/

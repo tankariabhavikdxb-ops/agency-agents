@@ -49,14 +49,17 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 # pyodbc is OPTIONAL: the XML API alone covers 100% of functionality.
-# ODBC is a faster read path used only when the driver is installed
-# (on Windows with Tally Prime running it is installed automatically).
+# ODBC is a faster read path used only when the driver loads
+# (on Windows with Tally Prime running it is installed automatically;
+#  on Linux it additionally needs the unixODBC system library).
 try:
     import pyodbc  # type: ignore
     PYODBC_AVAILABLE = True
-except ImportError:  # pragma: no cover
+    PYODBC_IMPORT_ERROR = None
+except ImportError as _exc:  # pragma: no cover
     pyodbc = None
     PYODBC_AVAILABLE = False
+    PYODBC_IMPORT_ERROR = str(_exc)
 
 
 # ============================================================================
@@ -77,6 +80,17 @@ logging.basicConfig(
     handlers=_build_log_handlers()
 )
 logger = logging.getLogger('TallyBridge')
+
+
+# ============================================================================
+# OPTIONAL .env FILE (python-dotenv) — must load BEFORE Config reads env
+# ============================================================================
+# Configuration precedence: real environment variables win over .env values.
+try:
+    from dotenv import load_dotenv
+    DOTENV_LOADED = bool(load_dotenv())
+except ImportError:  # python-dotenv not installed — plain env vars still work
+    DOTENV_LOADED = False
 
 
 # ============================================================================
@@ -343,9 +357,17 @@ class ODBCManager:
     def initialize(self):
         """Probe the ODBC driver/DSN once at startup."""
         if not PYODBC_AVAILABLE:
-            self._init_error = ('pyodbc is not installed - running in '
-                                'XML-API-only mode (all features still work)')
-            logger.warning(self._init_error)
+            if PYODBC_IMPORT_ERROR and 'libodbc' in PYODBC_IMPORT_ERROR:
+                self._init_error = ('pyodbc is installed but the unixODBC '
+                                    'system library is missing — run: '
+                                    'sudo apt install unixodbc  '
+                                    '(XML-API-only mode meanwhile; all '
+                                    'features still work)')
+            else:
+                self._init_error = ('pyodbc is not installed — running in '
+                                    'XML-API-only mode (all features still '
+                                    'work). Install with: pip install pyodbc')
+            logger.warning('ODBC unavailable: %s', self._init_error)
             return False
         try:
             conn = pyodbc.connect(self._connection_string(), timeout=10)
@@ -1699,6 +1721,7 @@ def health_check():
     return jsonify({
         'status': 'running',
         'version': '2.0',
+        'config_source': '.env file' if DOTENV_LOADED else 'environment',
         'tally_xml_api': tally_status,
         'tally_url': Config.TALLY_URL,
         'tally_odbc': odbc_status,
@@ -2026,8 +2049,8 @@ def api_voucher_types(company_name):
 def api_odbc_query(company_name):
     """Run a read-only ODBC query (fast path, only when driver available)."""
     if not PYODBC_AVAILABLE:
-        raise APIError('pyodbc is not installed on this machine '
-                       '(pip install pyodbc)', 503)
+        raise APIError(odbc_manager._init_error or
+                       'pyodbc is not available on this machine', 503)
     data = request.get_json(silent=True) or {}
     query = data.get('query', '')
     if not re.match(r'(?i)^\s*select', query or ''):
@@ -2293,6 +2316,8 @@ def main():
         host=Config.HOST,
         port=Config.PORT,
     ))
+    if DOTENV_LOADED:
+        logger.info('Configuration loaded from .env (env vars override).')
 
     logger.info('Initializing ODBC connection...')
     odbc_manager.initialize()

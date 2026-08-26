@@ -9,7 +9,7 @@
  */
 import { JSDOM, VirtualConsole } from 'jsdom';
 
-const BASE = 'http://127.0.0.1:5000';
+const BASE = process.env.BASE || 'http://127.0.0.1:5000';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const errors = [];

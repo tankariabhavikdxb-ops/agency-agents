@@ -1,13 +1,24 @@
-# Tally Bridge — Phase 1 (Python middleware) core dependencies
-Flask>=3.0
-Flask-Cors>=4.0
-Flask-SocketIO>=5.3
-simple-websocket>=1.0.0
-requests>=2.31
+# ═══════════════════════════════════════════════════════════════════════════
+# Tally Bridge — pinned dependencies (Phase 3)
+# Install:  Windows → setup.bat   ·   Linux/macOS → ./setup.sh
+# ═══════════════════════════════════════════════════════════════════════════
 
-# OPTIONAL — fast ODBC read path to Tally Prime.
-# Works out of the box on Windows (Tally's ODBC driver ships with Tally Prime).
-# On Linux you need unixODBC dev headers first:
-#   sudo apt install unixodbc-dev && pip install pyodbc
-# The bridge runs fine WITHOUT it (XML-API-only mode) — all features work.
-# pyodbc>=5.0
+flask==3.0.0
+flask-socketio==5.3.6
+flask-cors==4.0.0
+pyodbc==5.0.1
+requests==2.31.0
+urllib3==2.1.0
+eventlet==0.35.1
+python-dotenv==1.0.0
+
+# Native WebSocket transport for the live-sync connection.
+# (Kept out of the original pin list but required by Flask-SocketIO for
+#  real-time push; without it the app silently falls back to HTTP
+#  long-polling.)
+simple-websocket==1.0.0
+
+# NOTE on pyodbc: it only builds where an ODBC driver toolchain exists
+# (works out of the box on Windows, where Tally's driver is installed).
+# The setup scripts detect a failed pyodbc install and continue without
+# it — every feature still works through the XML API.

@@ -21,18 +21,54 @@ Browser (frontend) ⇄ HTTP/WebSocket ⇄ server.py (Flask + SyncEngine)
 
 ---
 
-## Quick start (on the PC where Tally Prime runs)
+## Installation
 
-```bat
+Everything ships with one-click setup scripts that create an isolated virtual
+environment, install the pinned dependencies (`requirements.txt`) and prepare a
+`.env` configuration file.
+
+### Windows (the PC where Tally Prime runs)
+
+1. Double-click **`setup.bat`** — checks Python 3.9+, creates `venv\`, installs
+   dependencies, creates `.env`.
+2. Double-click **`run.bat`** — starts the bridge.
+3. Open **http://127.0.0.1:5000**.
+
+If `pyodbc` fails to install (rare on Windows), the setup automatically
+retries without it and the bridge runs in XML-API-only mode — every feature
+still works.
+
+### Linux / macOS
+
+```bash
 cd tally-bridge
-py -3 -m pip install -r requirements.txt
-py -3 server.py
+./setup.sh
+./run.sh
 ```
 
-Then open **http://127.0.0.1:5000** — the app boots through a splash screen,
-lets you pick an open company (with live connection testing), and drops you on
-the dashboard. The first screen also lets you point the bridge at another
-Tally host/port (LAN) without editing files.
+### Manual install (any platform)
+
+```bash
+python3 -m venv venv
+venv/bin/pip install -r requirements.txt     # Windows: venv\Scripts\pip
+venv/bin/python server.py                    # Windows: venv\Scripts\python
+```
+
+### Configuration — `.env`
+
+`setup` copies `.env.example` to `.env`; edit it to match your environment.
+Real environment variables always override `.env` values.
+
+```ini
+BRIDGE_HOST=127.0.0.1   # 0.0.0.0 to allow the whole LAN
+BRIDGE_PORT=5000
+TALLY_HOST=localhost    # LAN IP when Tally runs on another PC
+TALLY_PORT=9000
+TALLY_ODBC_DSN=TallyODBC64_9000
+SYNC_INTERVAL=5         # seconds between Tally change checks
+```
+
+All supported variables are documented in `.env.example`.
 
 Checklist if the XML API shows *down*:
 
@@ -40,20 +76,15 @@ Checklist if the XML API shows *down*:
 2. The API port must be enabled: in Tally → **Help → Settings → Connectivity**
    → set **TallyPrime acts as** → *Both (ODBC + XML API)* (or Advanced) on port
    `9000`.
-3. If Tally runs on another LAN machine: `set TALLY_HOST=192.168.x.x` before
-   starting, and enable *Connectivity from other computers* in the same panel.
+3. If Tally runs on another LAN machine: set `TALLY_HOST=192.168.x.x` in
+   `.env`, and enable *Connectivity from other computers* in the same panel.
 
 ### ODBC (optional)
 
-Everything works through the XML API alone. To also enable the ODBC fast path:
-
-```bat
-py -3 -m pip install pyodbc
-set TALLY_ODBC_DSN=TallyODBC64_9000        :: DSN created by Tally, or:
-set TALLY_ODBC_CONNECT_STRING=Driver={Tally ODBC Driver};Server=localhost;Port=9000
-```
-
-The health endpoint (`/api/health`) tells you which paths are live.
+Everything works through the XML API alone. To also enable the ODBC fast path,
+install the `pyodbc` driver (Windows: included via `requirements.txt`) and set
+`TALLY_ODBC_DSN` (or `TALLY_ODBC_CONNECT_STRING`) in `.env`. The health
+endpoint (`/api/health`) tells you which paths are live.
 
 ### Offline development / demo (no Tally needed)
 
@@ -68,7 +99,7 @@ python3 server.py         # terminal 2 — the bridge on :5000
 
 ---
 
-## Configuration (environment variables)
+## Configuration reference (all variables, env or `.env`)
 
 | Variable | Default | Meaning |
 |---|---|---|
@@ -242,8 +273,10 @@ or narrations containing `&` round-trip safely. Text parsed back from Tally is
 tally-bridge/
 ├── server.py                 # the middleware (Flask + SocketIO + sync engine)
 ├── mock_tally.py             # offline mock of Tally's XML API for development
-├── requirements.txt
-├── start.sh / start.bat      # launchers
+├── requirements.txt          # pinned dependencies (Phase 3)
+├── setup.bat / setup.sh      # one-click installers (venv + deps + .env)
+├── run.bat / run.sh          # launchers (use the venv)
+├── .env.example              # documented configuration template
 ├── frontend/
 │   ├── index.html            # app shell: splash, setup, layout, templates, icon sprite
 │   ├── console.html          # Phase-1 diagnostics console (also linked from config)
@@ -260,7 +293,11 @@ tally-bridge/
 - **Phase 2 (done)** — full Tally-style frontend: company setup, dashboard,
   day book, voucher register + entry/alter/delete, masters with CRUD,
   reports with CSV export, configuration page, light/dark theme.
-- **Phase 3 (next)** — per the roadmap: printing, GST-ready invoice formats,
+- **Phase 3 (done)** — requirements & setup layer: pinned dependencies,
+  one-click `setup`/`run` scripts for Windows and Linux/macOS, virtual
+  environment isolation, `.env` configuration loaded via python-dotenv
+  (env vars still override).
+- **Phase 4 (next)** — per the roadmap: printing, GST-ready invoice formats,
   bill-wise details, cost-centre allocation, cheque details, user preference
   persistence, packaging as a desktop app.
 
