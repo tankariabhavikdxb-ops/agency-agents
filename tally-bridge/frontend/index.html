@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tally Bridge — Phase 1 Console</title>
+<style>
+  :root {
+    --bg: #0b1220; --bg2: #0f1830; --card: #131e38; --card2: #182647;
+    --line: #24345e; --text: #e6edf7; --muted: #8fa3c8; --dim: #5f7396;
+    --blue: #4f8cff; --blue2: #2f6ce0; --green: #2ecc8f; --red: #ff5f6e;
+    --amber: #ffb547; --violet: #9d7bff; --mono: ui-monospace, 'Cascadia Code',
+      Consolas, Menlo, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: radial-gradient(1200px 600px at 80% -10%, #16244d 0%,
+                var(--bg) 55%);
+    color: var(--text); min-height: 100vh;
+  }
+  header {
+    display: flex; align-items: center; gap: 14px; padding: 18px 28px;
+    border-bottom: 1px solid var(--line);
+    background: rgba(11, 18, 32, .85); position: sticky; top: 0;
+    backdrop-filter: blur(8px); z-index: 10;
+  }
+  .logo {
+    width: 40px; height: 40px; border-radius: 10px; flex: none;
+    background: linear-gradient(135deg, var(--blue), var(--violet));
+    display: grid; place-items: center; font-weight: 800; font-size: 20px;
+    color: #fff; box-shadow: 0 4px 18px rgba(79, 140, 255, .45);
+  }
+  header h1 { font-size: 18px; font-weight: 700; letter-spacing: .2px; }
+  header .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  header .right { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+  .pill {
+    font-size: 11px; font-weight: 600; padding: 5px 12px; border-radius: 999px;
+    border: 1px solid var(--line); color: var(--muted); background: var(--card);
+    display: inline-flex; align-items: center; gap: 7px;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); }
+  .dot.ok { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .dot.err { background: var(--red); box-shadow: 0 0 8px var(--red); }
+  .dot.warn { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+
+  main { max-width: 1280px; margin: 0 auto; padding: 26px 28px 60px; }
+
+  .grid { display: grid; gap: 16px; }
+  .cards3 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .split { grid-template-columns: 1.2fr .8fr; }
+  @media (max-width: 980px) { .split { grid-template-columns: 1fr; } }
+
+  .card {
+    background: linear-gradient(180deg, var(--card), var(--bg2));
+    border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px;
+  }
+  .card h2 {
+    font-size: 12px; text-transform: uppercase; letter-spacing: 1.4px;
+    color: var(--muted); margin-bottom: 14px; display: flex; gap: 8px;
+    align-items: center;
+  }
+  .status-card { display: flex; flex-direction: column; gap: 10px; }
+  .status-card .title { font-weight: 700; font-size: 15px; display: flex;
+    align-items: center; gap: 10px; }
+  .status-card .detail { font-size: 12px; color: var(--muted);
+    font-family: var(--mono); word-break: break-all; }
+
+  .stat { display: flex; justify-content: space-between; align-items: baseline;
+    padding: 9px 0; border-bottom: 1px dashed #1e2c52; font-size: 13px; }
+  .stat:last-child { border-bottom: 0; }
+  .stat b { font-size: 16px; font-family: var(--mono); }
+  .stat .lbl { color: var(--muted); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--muted); font-weight: 600; font-size: 11px;
+    text-transform: uppercase; letter-spacing: .8px; padding: 8px 10px;
+    border-bottom: 1px solid var(--line); }
+  td { padding: 9px 10px; border-bottom: 1px solid #1a2749; }
+  tr:hover td { background: rgba(79, 140, 255, .06); }
+  .num { text-align: right; font-family: var(--mono); white-space: nowrap; }
+  .mono { font-family: var(--mono); font-size: 12px; }
+  .muted { color: var(--muted); } .dim { color: var(--dim); }
+  .pos { color: var(--green); } .neg { color: var(--red); }
+
+  button {
+    font: inherit; cursor: pointer; border-radius: 9px; border: 1px solid
+    var(--line); background: var(--card2); color: var(--text); padding: 8px 14px;
+    font-size: 13px; font-weight: 600; transition: .15s;
+  }
+  button:hover { border-color: var(--blue); background: #1c2c55; }
+  button.primary {
+    background: linear-gradient(135deg, var(--blue), var(--blue2));
+    border: 0; color: #fff; box-shadow: 0 4px 14px rgba(47, 108, 224, .4);
+  }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  input, select {
+    font: inherit; background: #0d1730; border: 1px solid var(--line);
+    color: var(--text); border-radius: 8px; padding: 8px 10px; font-size: 13px;
+    width: 100%;
+  }
+  input:focus, select:focus { outline: 2px solid rgba(79, 140, 255, .5); }
+
+  .company {
+    display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+    border: 1px solid var(--line); border-radius: 12px; margin-bottom: 10px;
+    background: var(--card2); transition: .15s; cursor: pointer;
+  }
+  .company:hover { border-color: var(--blue); transform: translateY(-1px); }
+  .company.active {
+    border-color: var(--green);
+    box-shadow: 0 0 0 1px var(--green), 0 6px 18px rgba(46, 204, 143, .15);
+  }
+  .company .nm { font-weight: 700; font-size: 14px; }
+  .company .meta { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .company button { margin-left: auto; flex: none; }
+
+  #log {
+    font-family: var(--mono); font-size: 11.5px; background: #0a1122;
+    border: 1px solid var(--line); border-radius: 10px; padding: 12px;
+    height: 300px; overflow-y: auto; line-height: 1.7;
+  }
+  #log .t { color: var(--dim); }
+  #log .ok { color: var(--green); } #log .err { color: var(--red); }
+  #log .ev { color: var(--violet); }
+
+  .banner {
+    border: 1px solid rgba(255, 181, 71, .4); background:
+    rgba(255, 181, 71, .08); color: #ffd9a0; font-size: 13px; padding: 12px 16px;
+    border-radius: 12px; margin-bottom: 20px; line-height: 1.55;
+  }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .row > div { flex: 1; min-width: 120px; }
+  .row label { display: block; font-size: 11px; color: var(--muted);
+    margin-bottom: 5px; text-transform: uppercase; letter-spacing: .8px; }
+  .toolbar { display: flex; gap: 10px; margin: 14px 0; flex-wrap: wrap; }
+  .footer { text-align: center; color: var(--dim); font-size: 12px;
+    margin-top: 34px; }
+  .skel { color: var(--dim); font-size: 13px; padding: 18px 0; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 12px;
+    padding: 6px 0; }
+  pre.api { font-family: var(--mono); font-size: 11px; color: var(--muted);
+    background: #0a1122; border: 1px solid var(--line); border-radius: 8px;
+    padding: 12px; overflow-x: auto; margin-top: 8px; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">T</div>
+  <div>
+    <h1>Tally Prime 2.1 · Frontend Bridge</h1>
+    <div class="sub">Phase 1 — Middleware &amp; Sync Console</div>
+  </div>
+  <div class="right">
+    <span class="pill"><span class="dot" id="d-srv"></span>Bridge <span id="st-srv">…</span></span>
+    <span class="pill"><span class="dot" id="d-api"></span>XML API <span id="st-api">…</span></span>
+    <span class="pill"><span class="dot" id="d-odbc"></span>ODBC <span id="st-odbc">…</span></span>
+    <span class="pill"><span class="dot" id="d-sync"></span>Sync <span id="st-sync">…</span></span>
+  </div>
+</header>
+
+<main>
+  <div class="banner" id="hint">
+    <b>Phase 1 console.</b> This page verifies the Python middleware end-to-end:
+    connection health, company discovery, live bidirectional sync and write
+    operations. The full Tally-style UI arrives in Phase 2.
+    <span id="hint-off" style="display:none"><br><b>Tally not reachable.</b>
+    Start Tally Prime 2.1 (with the API port enabled), or run
+    <code>python mock_tally.py</code> for an offline demo, then hit Refresh.</span>
+  </div>
+
+  <div class="grid cards3" style="margin-bottom:16px">
+    <div class="card status-card">
+      <div class="title"><span class="dot" id="c-api-dot"></span>Tally XML API</div>
+      <div class="detail" id="c-api-detail">—</div>
+      <div class="detail muted" id="c-api-lag">—</div>
+    </div>
+    <div class="card status-card">
+      <div class="title"><span class="dot" id="c-odbc-dot"></span>Tally ODBC</div>
+      <div class="detail" id="c-odbc-detail">—</div>
+    </div>
+    <div class="card status-card">
+      <div class="title"><span class="dot" id="c-sync-dot"></span>Sync Engine</div>
+      <div class="detail" id="c-sync-detail">—</div>
+      <div class="detail muted" id="c-sync-companies">no company subscribed</div>
+    </div>
+  </div>
+
+  <div class="grid split" style="margin-bottom:16px">
+    <div class="card">
+      <h2>Open Companies</h2>
+      <div id="companies"><div class="skel">Loading companies…</div></div>
+      <div class="toolbar">
+        <button onclick="loadCompanies()">⟳ Refresh</button>
+        <button class="primary" id="btn-dash" disabled onclick="loadDashboard()">Show Dashboard</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Live Activity (WebSocket)</h2>
+      <div id="log"></div>
+    </div>
+  </div>
+
+  <div class="card" id="dash-card" style="display:none; margin-bottom:16px">
+    <h2>Dashboard — <span id="dash-co" class="muted"></span></h2>
+    <div class="grid cards3" style="margin-bottom:14px">
+      <div>
+        <div class="stat"><span class="lbl">Ledgers</span><b id="d-ledgers">—</b></div>
+        <div class="stat"><span class="lbl">Stock Items</span><b id="d-items">—</b></div>
+      </div>
+      <div>
+        <div class="stat"><span class="lbl">Vouchers (FY)</span><b id="d-vch">—</b></div>
+        <div class="stat"><span class="lbl">Vouchers Today</span><b id="d-today">—</b></div>
+      </div>
+      <div>
+        <div class="stat"><span class="lbl">Trial Balance Total</span><b id="d-tb">—</b></div>
+        <div class="stat"><span class="lbl">Difference</span><b id="d-diff">—</b></div>
+      </div>
+    </div>
+    <h2 style="margin-top:6px">Recent Vouchers</h2>
+    <div style="overflow-x:auto">
+      <table id="d-table">
+        <thead><tr><th>Date</th><th>Type</th><th>No</th><th>Party</th>
+        <th>Amount</th><th>Narration</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Diagnostic Write — Journal Voucher (tests bidirectional sync)</h2>
+    <p class="muted" style="font-size:12px; margin-bottom:12px">
+      Creates a real voucher through the middleware. On the mock server this is
+      always safe; against live Tally it writes actual data — use a test company.
+      After saving, watch the Live Activity panel fire a sync event within a few
+      seconds.</p>
+    <div class="row">
+      <div><label>Date</label><input type="date" id="w-date"></div>
+      <div><label>Debit Ledger</label><input id="w-dr" value="Office Expenses"></div>
+      <div><label>Credit Ledger</label><input id="w-cr" value="Cash"></div>
+      <div><label>Amount</label><input id="w-amt" type="number" value="100" min="0.01" step="0.01"></div>
+      <div style="flex:2"><label>Narration</label><input id="w-narr" value="Bridge diagnostic entry"></div>
+      <div style="flex:none"><button class="primary" onclick="sendTestVoucher()">Save</button></div>
+    </div>
+    <details style="margin-top:14px">
+      <summary>REST API quick reference (for Phase 2 development)</summary>
+      <pre class="api">GET  /api/health                          system + connectivity status
+GET  /api/companies                       open companies in Tally
+POST /api/companies/{company}/select      subscribe to live sync
+GET  /api/{company}/ledgers|groups|stock-items|stock-groups|units|currencies
+GET  /api/{company}/cost-centres|cost-categories|godowns|voucher-types
+POST /api/{company}/ledgers               create ledger      {name, parent, ...}
+PUT  /api/{company}/ledgers/{name}        alter ledger
+DEL  /api/{company}/ledgers/{name}        delete ledger
+POST /api/{company}/stock-items           create stock item
+GET  /api/{company}/vouchers?type=&from_date=&to_date=&page=&page_size=
+POST /api/{company}/vouchers              create voucher {voucher_type, date,
+                                            ledger_entries:[{ledger_name,amount,is_debit}], narration}
+PUT  /api/{company}/vouchers/{remote_id}  alter voucher
+POST /api/{company}/vouchers/delete       delete {remote_id | voucher_number+voucher_type+date}
+GET  /api/{company}/day-book?date=
+GET  /api/{company}/ledger-vouchers/{ledger}
+GET  /api/{company}/reports/trial-balance|balance-sheet|profit-loss
+GET  /api/{company}/dashboard             aggregated home-screen stats
+GET  /api/sync/status                     sync engine internals
+WS   data_changed                         push event on any Tally-side change</pre>
+    </details>
+  </div>
+
+  <div class="footer">
+    Tally Bridge v1.0 · Phase 1 (middleware) · Phase 2 adds the full Tally-style
+    frontend (masters, voucher entry, reports)
+  </div>
+</main>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+let selectedCompany = null;
+let socket = null;
+
+function logLine(html, cls = '') {
+  const t = new Date().toLocaleTimeString();
+  const el = $('log');
+  el.insertAdjacentHTML('beforeend',
+    `<div class="${cls}"><span class="t">${t}</span> ${html}</div>`);
+  el.scrollTop = el.scrollHeight;
+}
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, {
+    headers: { 'Content-Type': 'application/json' }, ...opts });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.message || res.statusText);
+  return json;
+}
+
+function setDot(dotId, state) {
+  const d = $(dotId);
+  d.className = 'dot' + (state === 'ok' ? ' ok' :
+    state === 'err' ? ' err' : state === 'warn' ? ' warn' : '');
+}
+
+async function loadHealth() {
+  try {
+    const h = await api('/api/health');
+    setDot('d-srv', 'ok'); $('st-srv').textContent = 'up';
+    const apiOk = h.tally_xml_api === 'connected';
+    setDot('d-api', apiOk ? 'ok' : 'err');
+    $('st-api').textContent = apiOk ? 'up' : 'down';
+    const odbcState = h.tally_odbc === 'connected' ? 'ok' :
+      h.tally_odbc === 'not_installed' ? 'warn' : 'err';
+    setDot('d-odbc', odbcState);
+    $('st-odbc').textContent = h.tally_odbc === 'connected' ? 'up' :
+      h.tally_odbc === 'not_installed' ? 'n/a' : 'down';
+    const syncOk = h.sync_engine === 'running';
+    setDot('d-sync', syncOk ? 'ok' : 'err');
+    $('st-sync').textContent = syncOk ? 'on' : 'off';
+
+    $('c-api-detail').textContent = h.tally_url +
+      (apiOk ? '' : '  (unreachable)');
+    setDot('c-api-dot', apiOk ? 'ok' : 'err');
+    $('c-api-lag').textContent = 'checked ' + new Date(
+      h.timestamp).toLocaleTimeString();
+    $('c-odbc-detail').textContent = h.tally_odbc === 'connected' ?
+      'driver connected (fast read path active)' :
+      (h.odbc_detail || h.tally_odbc);
+    setDot('c-odbc-dot', odbcState === 'ok' ? 'ok' : odbcState);
+    $('c-sync-detail').textContent = 'engine ' + h.sync_engine +
+      ' · poll every ' + (h.sync_interval || '?') + 's';
+    setDot('c-sync-dot', syncOk ? 'ok' : 'err');
+    $('hint-off').style.display = apiOk ? 'none' : 'inline';
+    return h;
+  } catch (e) {
+    setDot('d-srv', 'err'); $('st-srv').textContent = 'down';
+    logLine('Bridge unreachable: ' + e.message, 'err');
+    return null;
+  }
+}
+
+async function loadSyncStatus() {
+  try {
+    const s = await api('/api/sync/status');
+    const companies = Object.entries(s.data.companies || {});
+    $('c-sync-companies').textContent = companies.length ?
+      companies.map(([n, c]) => `${n} (alter ${c.alter_id ?? '—'})`).join(', ')
+      : 'no company subscribed';
+  } catch (e) { /* bridge down */ }
+}
+
+async function loadCompanies() {
+  const box = $('companies');
+  box.innerHTML = '<div class="skel">Loading companies…</div>';
+  try {
+    const res = await api('/api/companies');
+    if (!res.data.length) {
+      box.innerHTML = '<div class="skel">No companies open in Tally.</div>';
+      return;
+    }
+    box.innerHTML = '';
+    res.data.forEach((c) => {
+      const div = document.createElement('div');
+      div.className = 'company' +
+        (c.name === selectedCompany ? ' active' : '');
+      div.innerHTML = `
+        <div><div class="nm">${esc(c.name)}</div>
+        <div class="meta">${esc(c.formal_name || '')}
+        ${c.books_from ? '· books from ' + fmtDate(c.books_from) : ''}</div></div>`;
+      const btn = document.createElement('button');
+      btn.textContent = c.name === selectedCompany ? '✓ Selected' : 'Select';
+      btn.onclick = async (ev) => { ev.stopPropagation(); await selectCompany(c.name); };
+      div.appendChild(btn);
+      div.onclick = () => selectCompany(c.name);
+      box.appendChild(div);
+    });
+  } catch (e) {
+    box.innerHTML = `<div class="skel">Could not load companies: ${esc(e.message)}
+      <br>Is Tally Prime running with a company open?</div>`;
+  }
+}
+
+async function selectCompany(name) {
+  selectedCompany = name;
+  logLine(`Selected company <b>${esc(name)}</b> — starting live sync`, 'ev');
+  try {
+    await api(`/api/companies/${encodeURIComponent(name)}/select`,
+      { method: 'POST' });
+    if (socket) socket.emit('subscribe_company', { company: name });
+  } catch (e) { logLine('Select failed: ' + esc(e.message), 'err'); }
+  loadCompanies();
+  loadDashboard();
+  loadSyncStatus();
+}
+
+async function loadDashboard() {
+  if (!selectedCompany) return;
+  $('dash-card').style.display = '';
+  $('dash-co').textContent = selectedCompany;
+  try {
+    const res = await api(`/api/${encodeURIComponent(selectedCompany)}/dashboard`);
+    const d = res.data;
+    $('d-ledgers').textContent = d.ledger_count;
+    $('d-items').textContent = d.stock_item_count;
+    $('d-vch').textContent = d.voucher_count_fy;
+    $('d-today').textContent = d.vouchers_today;
+    $('d-tb').textContent = fmtAmt(d.trial_balance_total);
+    $('d-diff').textContent = fmtAmt(d.difference);
+    $('d-diff').className = Math.abs(d.difference) < 0.01 ? 'pos' : 'neg';
+    const tbody = $('d-table').querySelector('tbody');
+    tbody.innerHTML = (d.recent_vouchers || []).map((v) => `
+      <tr><td class="mono">${fmtDate(v.date)}</td><td>${esc(v.voucher_type)}</td>
+      <td class="mono">${esc(v.voucher_number)}</td><td>${esc(v.party_ledger || '—')}</td>
+      <td class="num">${fmtAmt(v.amount)}</td>
+      <td class="muted">${esc(v.narration || '')}</td></tr>`).join('') ||
+      '<tr><td colspan="6" class="dim">No vouchers in the current FY.</td></tr>';
+  } catch (e) {
+    logLine('Dashboard failed: ' + esc(e.message), 'err');
+  }
+}
+
+async function sendTestVoucher() {
+  if (!selectedCompany) { alert('Select a company first.'); return; }
+  const payload = {
+    voucher_type: 'Journal',
+    date: $('w-date').value || new Date().toISOString().slice(0, 10),
+    narration: $('w-narr').value,
+    ledger_entries: [
+      { ledger_name: $('w-dr').value, amount: Number($('w-amt').value), is_debit: true },
+      { ledger_name: $('w-cr').value, amount: Number($('w-amt').value), is_debit: false },
+    ],
+  };
+  if (!payload.ledger_entries[0].ledger_name ||
+      !payload.ledger_entries[1].ledger_name ||
+      !(payload.ledger_entries[0].amount > 0)) {
+    alert('Fill both ledgers and a positive amount.'); return;
+  }
+  if (!confirm(`Save a ${payload.ledger_entries[0].amount} Journal voucher in
+"${selectedCompany}"?\n\n(Real write against Tally — safe on the mock server.)`)) return;
+
+  logLine(`POST voucher: Dr ${esc(payload.ledger_entries[0].ledger_name)} /
+    Cr ${esc(payload.ledger_entries[1].ledger_name)} —
+    ${payload.ledger_entries[0].amount}`, 'ev');
+  try {
+    const res = await api(`/api/${encodeURIComponent(selectedCompany)}/vouchers`,
+      { method: 'POST', body: JSON.stringify(payload) });
+    if (res.success) {
+      logLine(`Voucher saved ✔ (${res.message || 'created'}) — awaiting sync event…`, 'ok');
+      setTimeout(loadDashboard, 1200);
+    } else {
+      logLine('Tally rejected: ' + (res.errors || []).join('; '), 'err');
+    }
+  } catch (e) { logLine('Save failed: ' + esc(e.message), 'err'); }
+}
+
+function connectSocket() {
+  try { socket = io({ transports: ['polling', 'websocket'] }); }
+  catch (e) { logLine('Socket.IO client not available', 'err'); return; }
+  socket.on('connected', () => {
+    logLine('WebSocket connected', 'ok');
+    if (selectedCompany)
+      socket.emit('subscribe_company', { company: selectedCompany });
+  });
+  socket.on('data_changed', (ev) => {
+    logLine(`⚡ sync event: <b>${esc(ev.type)}</b> — ${esc(ev.company)}`, 'ev');
+    if (ev.type === 'data_changed') {
+      loadDashboard(); loadSyncStatus();
+    }
+  });
+  socket.on('disconnect', () => logLine('WebSocket disconnected', 'err'));
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;',
+              "'": '&#39;' }[c]));
+}
+function fmtAmt(v) {
+  const n = Math.abs(parseFloat(String(v).replace(/[()]/g, '')));
+  if (isNaN(n)) return String(v ?? '—');
+  return (String(v).trim().startsWith('-') ? '-' : (parseFloat(v) < 0 ? '-' : '')) +
+    n.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+}
+function fmtDate(d) {
+  const s = String(d || '');
+  if ( /^\d{8}$/.test(s)) return `${s.slice(6,8)}-${s.slice(4,6)}-${s.slice(0,4)}`;
+  return s;
+}
+
+// ---- boot ----
+$('w-date').value = new Date().toISOString().slice(0, 10);
+logLine('Console started — probing bridge…');
+loadHealth();
+loadCompanies();
+loadSyncStatus();
+connectSocket();
+setInterval(loadHealth, 10000);
+setInterval(loadSyncStatus, 10000);
+</script>
+</body>
+</html>

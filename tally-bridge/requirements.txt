@@ -1,0 +1,13 @@
+# Tally Bridge — Phase 1 (Python middleware) core dependencies
+Flask>=3.0
+Flask-Cors>=4.0
+Flask-SocketIO>=5.3
+simple-websocket>=1.0.0
+requests>=2.31
+
+# OPTIONAL — fast ODBC read path to Tally Prime.
+# Works out of the box on Windows (Tally's ODBC driver ships with Tally Prime).
+# On Linux you need unixODBC dev headers first:
+#   sudo apt install unixodbc-dev && pip install pyodbc
+# The bridge runs fine WITHOUT it (XML-API-only mode) — all features work.
+# pyodbc>=5.0
