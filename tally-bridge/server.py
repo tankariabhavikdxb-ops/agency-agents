@@ -1698,7 +1698,7 @@ def health_check():
 
     return jsonify({
         'status': 'running',
-        'version': '1.0-phase1',
+        'version': '2.0',
         'tally_xml_api': tally_status,
         'tally_url': Config.TALLY_URL,
         'tally_odbc': odbc_status,
